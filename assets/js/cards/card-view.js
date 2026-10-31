@@ -42,34 +42,35 @@ function mount(root,instruments,onSelect){
  }
  root.addEventListener('mc-slot-visibility',onSlotVisibility);
  items.forEach(item=>resizeObserver?.observe(item.nodes.chart));
- const activePointers=new Map();let lastPointerSelectAt=0;
+ const activePointers=new Map();let lastTouchSelectAt=0;
  function select(symbol){if(typeof onSelect==='function')onSelect(symbol);}
  function cardFrom(target){
   const card=target instanceof Element?target.closest('.mc-card[data-symbol]'):null;
   return card&&root.contains(card)?card:null;
  }
  function onPointerDown(event){
-  if(!event.isPrimary||(event.pointerType==='mouse'&&event.button!==0))return;
+  // Mouse activation is handled by the native click event; this path is touch-only.
+  if(event.pointerType!=='touch'||!event.isPrimary)return;
   const card=cardFrom(event.target);if(!card)return;
   activePointers.set(event.pointerId,{card,x:event.clientX,y:event.clientY});
  }
  function onPointerUp(event){
+  if(event.pointerType!=='touch')return;
   const start=activePointers.get(event.pointerId);activePointers.delete(event.pointerId);
   if(!start||!start.card.isConnected)return;
   const moved=Math.hypot(event.clientX-start.x,event.clientY-start.y);
   // The scroll engine starts a drag at 8px; anything at or beyond that is never a tap.
   if(moved>=8)return;
-  // A tap must finish on the same card where it began, not merely nearby or outside the list.
   const released=document.elementFromPoint(event.clientX,event.clientY);
   if(cardFrom(released)!==start.card)return;
-  lastPointerSelectAt=Date.now();
+  lastTouchSelectAt=Date.now();
   select(start.card.dataset.symbol);
  }
  function onPointerCancel(event){activePointers.delete(event.pointerId);}
  function onClick(event){
   const card=cardFrom(event.target);if(!card)return;
-  // Pointer taps are handled once on pointerup; retain click for keyboard/accessibility activation.
-  if(Date.now()-lastPointerSelectAt<700)return;
+  // Suppress only the synthetic click generated after a handled touch tap.
+  if(event.detail!==0&&Date.now()-lastTouchSelectAt<700)return;
   select(card.dataset.symbol);
  }
  root.addEventListener('pointerdown',onPointerDown,{capture:true,passive:true});
