@@ -315,11 +315,31 @@ function captureAutoProgress(){
  }
  return{phase:'hold',remaining:HOLD_MS,index:currentIndex};
 }
+function fadeOutAndHide(){
+ const id=++generation;
+ clearAutoTimer();
+ clearManualTimer();
+ clearRefreshTimer();
+ mode='exiting';
+ root.hidden=false;
+ layers.forEach((layer,index)=>{
+  layer.style.transition='none';
+  layer.style.pointerEvents='none';
+  layer.style.opacity=index===active?'1':'0';
+ });
+ layers[active].getBoundingClientRect();
+ layers[active].style.transition='opacity '+TRANSITION_MS+'ms ease-in-out';
+ layers[active].style.opacity='0';
+ armAutoTimer(()=>{
+  if(id!==generation||mode!=='exiting')return;
+  hide();
+ },TRANSITION_MS);
+}
 function restoreAuto(){
  clearManualTimer();
  manualSymbol='';
  if(!queue.length){
-  hide();
+  fadeOutAndHide();
   return;
  }
  const saved=autoSnapshot||{phase:'hold',remaining:HOLD_MS,index:currentIndex};
