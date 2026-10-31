@@ -43,7 +43,6 @@ function create(root,layers,LWC,getActive){
  });
  const activeView=()=>views[getActive()];
  function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(viewport));}catch{}}
- function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{saveTimer=0;save();},120);}
  function targetRange(rows){
   const to=rows.length-1-viewport.rightGap;
   return{from:to-viewport.visibleBars,to};
