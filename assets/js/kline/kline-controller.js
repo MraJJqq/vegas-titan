@@ -30,12 +30,13 @@ function setLayerStyles(index,transition=false){
 function showRoot(){
  ensureChart();root.hidden=false;requestAnimationFrame(()=>chart?.resize());
 }
-function updateHeader(symbol,rows){
+function updateHeader(symbol,rows,historyComplete=false){
  title.textContent=symbol;
  if(rows?.length){
   status.textContent=rows.at(-1).close.toLocaleString('en-US',{maximumFractionDigits:5})+' · '+rows.length+'根K线';
-  error.hidden=rows.length>=676;
-  if(rows.length<676)error.textContent='历史K线不足676根，EMA576/EMA676红峰无法完整显示（当前'+rows.length+'根）';
+  const target=data.warmupBars||4000;
+  error.hidden=rows.length>=target;
+  if(rows.length<target)error.textContent=historyComplete?'Bitget可获取历史仅'+rows.length+'根，未达到红峰预热目标'+target+'根':'红峰历史预热中：'+rows.length+'/'+target+'根';
  }else status.textContent='正在加载行情…';
 }
 async function loadLayer(index,symbol){
@@ -52,8 +53,8 @@ async function loadLayer(index,symbol){
    chart.setData(index,first,symbol,timeframe);
    view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
   }
-  if(index===active&&symbol===current())updateHeader(symbol,first);
-  if(first.length<1200){
+  if(index===active&&symbol===current())updateHeader(symbol,first,first.length>=(data.warmupBars||4000));
+  if(first.length<(data.warmupBars||4000)){
    data.complete(symbol,timeframe,first).then(rows=>{
     if(view.requestId!==requestId)return;
     const targetSymbol=view.pendingSymbol||view.symbol,targetPeriod=view.pendingPeriod||view.period;
@@ -63,7 +64,7 @@ async function loadLayer(index,symbol){
     }
     chart.setData(index,rows,symbol,timeframe);
     view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
-    if(index===active&&symbol===current())updateHeader(symbol,rows);
+    if(index===active&&symbol===current())updateHeader(symbol,rows,true);
    }).catch(exception=>{
     if(index===active&&symbol===current()){error.textContent='历史数据补齐失败 · '+String(exception.message||exception).slice(0,42);error.hidden=false;}
    });
