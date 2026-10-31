@@ -7,15 +7,16 @@ function mount(root,slots){
  const state={mode:'auto',raf:0,timer:0,lastTime:0,autoDelayUntil:performance.now()+250,
   wheelTarget:root.scrollTop,wheelSpeed:0,touchPending:false,touching:false,dragging:false,
   touchY:0,touchTime:0,touchSpeed:0,lastScroll:root.scrollTop,looping:false};
- let gap=0,stride=0,totalHeight=0,geometryDirty=true,autoFraction=0,lastFocusRange='';
+ let gap=0,slotHeight=0,stride=0,totalHeight=0,geometryDirty=true,autoFraction=0,lastFocusRange='';
  let alive=true,lastErrorAt=0;
  const styleCache=new WeakMap();
  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
  function measure(){
   if(!geometryDirty)return;
   gap=parseFloat(getComputedStyle(root).rowGap)||0;
-  stride=ordered[0]?ordered[0].offsetHeight+gap:0;
-  totalHeight=ordered.reduce((sum,node)=>sum+node.offsetHeight,0)+gap*Math.max(0,ordered.length-1);
+  slotHeight=ordered[0]?ordered[0].offsetHeight:0;
+  stride=slotHeight+gap;
+  totalHeight=ordered.length*slotHeight+gap*Math.max(0,ordered.length-1);
   geometryDirty=false;
  }
  function normalize(direction){
@@ -25,12 +26,12 @@ function mount(root,slots){
    let top=root.scrollTop,guard=0,shift=0;
    if(direction>0){
     while(guard++<ordered.length&&ordered[0]&&top>=ordered[0].offsetHeight+gap){
-     const first=ordered.shift(),distance=first.offsetHeight+gap;
+     const first=ordered.shift(),distance=stride;
      root.appendChild(first);ordered.push(first);top-=distance;shift-=distance;
     }
    }else{
     while(guard++<ordered.length&&top<=0&&ordered[ordered.length-1]){
-     const last=ordered.pop(),distance=last.offsetHeight+gap;
+     const last=ordered.pop(),distance=stride;
      root.insertBefore(last,root.firstElementChild);ordered.unshift(last);top+=distance;shift+=distance;
     }
    }
@@ -56,7 +57,7 @@ function mount(root,slots){
   if(key===lastFocusRange)return;
   lastFocusRange=key;
   for(let i=first;i<last;i++){
-   const node=ordered[i],boxTop=node.offsetTop,boxHeight=node.offsetHeight;
+   const node=ordered[i],boxTop=i*stride,boxHeight=slotHeight;
    const visible=Math.max(0,Math.min(boxTop+boxHeight,top+height)-Math.max(boxTop,top));
    const ratio=Math.min(1,visible/Math.max(1,boxHeight)),distance=Math.abs(boxTop+boxHeight/2-center);
    const t=clamp(distance/range,0,1),e=t*t*(3-2*t),ft=clamp(distance/fadeRange,0,1),fe=ft*ft*(3-2*ft);
