@@ -1,10 +1,10 @@
-/* 底部信号播报：按 Bark 模板展示两个分类，并连续横向循环。 */
+/* 底部唯一信号文字入口：直接展示 Vegas V9 正式信号，按两个固定分类横向循环。 */
 (()=>{'use strict';
 if(window.__VEGAS_BOTTOM_SIGNAL_TICKER__)return;
 window.__VEGAS_BOTTOM_SIGNAL_TICKER__=true;
 const root=document.getElementById('vegas-signal-ticker'),track=root&&root.querySelector('.vst-track');
 if(!root||!track)return;
-const GROUPS=[['v9Stocks','🔸 美股巨头'],['v9Core','🔸 核心能源']];
+const GROUPS=[['v9Stocks','美股巨头'],['v9Core','核心能源']];
 let lastSignature=null;
 function readGroup(id){
  const source=document.getElementById(id);
