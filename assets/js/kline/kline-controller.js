@@ -10,6 +10,7 @@ if(!root||!LWC||!data||!window.VegasKlineChart){
 window.__VEGAS_LAYER5_MOUNTED__=true;
 const single=root.querySelector('.vr-single');
 const title=root.querySelector('.vr-symbol');
+const instrumentName=root.querySelector('.vr-name');
 const error=root.querySelector('.vr-error');
 const layers=[0,1].map(index=>{
  const layer=document.createElement('div');
@@ -100,6 +101,8 @@ function showRoot(){
 }
 function updateHeader(symbol,rows,historyComplete){
  title.textContent=symbol;
+ const instrument=window.VegasMarketUniverse?.find(item=>item.symbol===symbol);
+ if(instrumentName)instrumentName.textContent=instrument?.name||symbol;
  if(rows&&rows.length){
   const target=data.warmupBars||4000;
   error.hidden=rows.length>=target;
