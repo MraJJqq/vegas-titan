@@ -7,18 +7,18 @@ body{position:fixed;inset:0;background:#02040a}
 body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:#02040a}
 .app{position:relative;z-index:3;width:100%;height:100dvh;min-height:0;padding:0;background:transparent;overflow:hidden;overscroll-behavior:none;pointer-events:none}
 
-/* 第三层外壳：保留独立滚动引擎，卡片按原始模板自然尺寸排列。 */
+/* 第三层外壳：卡片内部样式不变，由外层缩放控制显示尺寸。 */
 #market-cards-layer{--up:#2ee6a6;position:fixed;z-index:10;inset:0;min-width:0;min-height:0;pointer-events:none;overflow:visible}
 #market-cards-layer .mc-columns{position:absolute;inset:0 auto 0 0;width:min(100vw,380px);min-width:0;min-height:0;overflow:visible;pointer-events:auto;background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 #market-cards-layer .mc-side{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;gap:clamp(3px,.45vh,6px);width:100%;height:100%;min-width:0;min-height:0;overflow-x:hidden;overflow-y:auto;overflow-anchor:none;overscroll-behavior:none;touch-action:none;padding-block:0;scrollbar-width:none;-ms-overflow-style:none;pointer-events:auto;cursor:default;background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 #market-cards-layer .mc-side::-webkit-scrollbar{display:none;width:0;height:0}
-#market-cards-layer .mc-slot{position:relative;flex:0 0 auto;perspective:900px;width:100%;min-width:0;max-width:100%;padding:12px 20px;pointer-events:auto;opacity:var(--mc-page-opacity,1);transition:opacity .22s ease;transform:translateZ(0) scale(var(--mc-focus-scale,1));transform-origin:center center;backface-visibility:hidden}
-#market-cards-layer .mc-float{transform-style:preserve-3d;animation:mc-bob 5.5s ease-in-out infinite alternate;animation-delay:var(--d)}
-@keyframes mc-bob{0%{transform:translateY(0) rotateY(-5deg) rotateX(2deg)}100%{transform:translateY(-7px) rotateY(5deg) rotateX(-2deg)}}
+#market-cards-layer .mc-slot{position:relative;display:flex;align-items:center;justify-content:center;flex:0 0 216px;height:216px;perspective:900px;width:100%;min-width:0;max-width:100%;padding:0 20px;pointer-events:auto;opacity:var(--mc-page-opacity,1);filter:blur(var(--mc-depth-blur,0px));transition:opacity .78s cubic-bezier(.22,.8,.24,1),transform .78s cubic-bezier(.22,.8,.24,1),filter .78s cubic-bezier(.22,.8,.24,1);transform:translateZ(0) scale(var(--mc-focus-scale,1));transform-origin:center center;backface-visibility:hidden}
+#market-cards-layer .mc-float{width:100%;transform-style:preserve-3d;animation:mc-bob 5.5s ease-in-out infinite alternate;animation-delay:var(--d)}
+@keyframes mc-bob{0%{transform:translateY(0) rotateY(-5deg) rotateX(2deg) scale(.8)}100%{transform:translateY(-7px) rotateY(5deg) rotateX(-2deg) scale(.8)}}
 #market-cards-layer .mc-gshadow{position:absolute;left:14%;right:14%;bottom:0;height:14px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.65),transparent);filter:blur(5px);animation:mc-sh 5.5s ease-in-out infinite alternate;animation-delay:var(--d)}
-@keyframes mc-sh{0%{transform:scale(1);opacity:.9}100%{transform:scale(.82);opacity:.5}}
+@keyframes mc-sh{0%{transform:scale(.8);opacity:.9}100%{transform:scale(.656);opacity:.5}}
 
-/* 原始行情小卡片尺寸：不再按旧卡片高度压缩，内容自然撑开。 */
+/* 卡片内部样式保持原样；外层按80%比例显示。 */
 #market-cards-layer .mc-card{--mc-color:var(--up);position:relative;z-index:1;display:flex;flex-direction:column;justify-content:space-between;width:min(340px,86vw);max-width:100%;min-height:0;min-width:0;padding:22px 22px 16px;overflow:hidden;border-radius:28px;pointer-events:auto;cursor:pointer;transform-style:preserve-3d;transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .14s ease-out,box-shadow .3s ease;background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.02));-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 12px 28px -15px color-mix(in srgb,var(--mc-color) 55%,transparent),inset 0 1px 0 rgba(255,255,255,.18)}
 #market-cards-layer .mc-card.up{--mc-color:#00f5a0}
 #market-cards-layer .mc-card.dn{--mc-color:#ff3b6b}

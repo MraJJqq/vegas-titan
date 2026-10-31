@@ -7,7 +7,7 @@ function mount(root,slots){
  const state={mode:'auto',raf:0,lastTime:0,autoDelayUntil:performance.now()+250,
   wheelTarget:root.scrollTop,wheelSpeed:0,touching:false,dragging:false,
   touchY:0,touchTime:0,touchSpeed:0,lastScroll:root.scrollTop,looping:false};
- let gap=0,stride=0,totalHeight=0,scaleMax=1,geometryDirty=true,autoFraction=0,lastFocusRange='';
+ let gap=0,stride=0,totalHeight=0,geometryDirty=true,autoFraction=0,lastFocusRange='';
  let alive=true,lastErrorAt=0;
  const styleCache=new WeakMap();
  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
@@ -16,8 +16,6 @@ function mount(root,slots){
   gap=parseFloat(getComputedStyle(root).rowGap)||0;
   stride=ordered[0]?ordered[0].offsetHeight+gap:0;
   totalHeight=ordered.reduce((sum,node)=>sum+node.offsetHeight,0)+gap*Math.max(0,ordered.length-1);
-  const first=ordered[0],card=first?.querySelector('.mc-card');
-  if(first&&card){const cs=getComputedStyle(first),pad=(parseFloat(cs.paddingLeft)||0)+(parseFloat(cs.paddingRight)||0);scaleMax=Math.min(1.16,Math.max(1,(first.clientWidth-pad-8)/Math.max(1,card.offsetWidth)));}
   geometryDirty=false;
  }
  function normalize(direction){
@@ -42,10 +40,11 @@ function mount(root,slots){
    }
   }finally{state.looping=false;}
  }
- function setStyle(node,scale,opacity){
+ function setStyle(node,scale,opacity,blur){
   const old=styleCache.get(node)||{};
   if(old.scale!==scale){node.style.setProperty('--mc-focus-scale',scale);old.scale=scale;}
   if(old.opacity!==opacity){node.style.setProperty('--mc-page-opacity',opacity);old.opacity=opacity;}
+  if(old.blur!==blur){node.style.setProperty('--mc-depth-blur',blur+'px');old.blur=blur;}
   styleCache.set(node,old);
  }
  function focus(){
@@ -62,9 +61,10 @@ function mount(root,slots){
    const visible=Math.max(0,Math.min(boxTop+boxHeight,top+height)-Math.max(boxTop,top));
    const ratio=Math.min(1,visible/Math.max(1,boxHeight)),distance=Math.abs(boxTop+boxHeight/2-center);
    const t=clamp(distance/range,0,1),e=t*t*(3-2*t),ft=clamp(distance/fadeRange,0,1),fe=ft*ft*(3-2*ft);
-   const scale=(1+(scaleMax-1)*(1-e)).toFixed(3);
-   const opacity=Math.max(.025,distance<height*.23&&ratio>=.98?1:(1-.72*fe)*Math.min(1,ratio*1.8)).toFixed(3);
-   setStyle(node,scale,opacity);
+   const scale=(1-.12*e).toFixed(3);
+   const opacity=Math.max(.06,distance<height*.23&&ratio>=.98?1:(1-.68*fe)*Math.min(1,ratio*1.8)).toFixed(3);
+   const blur=(1.6*fe).toFixed(2);
+   setStyle(node,scale,opacity,blur);
   }
  }
  function requestFrame(){
