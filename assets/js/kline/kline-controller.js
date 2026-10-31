@@ -10,7 +10,8 @@ if(!root||!LWC||!data||!window.VegasKlineChart){
 window.__VEGAS_LAYER5_MOUNTED__=true;
 const single=root.querySelector('.vr-single');
 const title=root.querySelector('.vr-symbol');
-const instrumentName=root.querySelector('.vr-name');
+const logo=root.querySelector('.vr-logo');
+const logoFallback=root.querySelector('.vr-logo-fallback');
 const error=root.querySelector('.vr-error');
 const layers=[0,1].map(index=>{
  const layer=document.createElement('div');
@@ -100,9 +101,17 @@ function showRoot(){
  requestAnimationFrame(()=>chart&&chart.resize());
 }
 function updateHeader(symbol,rows,historyComplete){
- title.textContent=symbol;
+ title.textContent=String(symbol||'').toUpperCase();
  const instrument=window.VegasMarketUniverse?.find(item=>item.symbol===symbol);
- if(instrumentName)instrumentName.textContent=instrument?.name||symbol;
+ const iconSlugs={AAPL:'apple',MSFT:'microsoft',GOOGL:'google',AMZN:'amazon',NVDA:'nvidia',TSLA:'tesla',META:'meta',INTC:'intel',QCOM:'qualcomm',AMD:'amd',TSM:'tsmc',AVGO:'broadcom',ORCL:'oracle',ARM:'arm',MU:'micron',ASML:'asml',SNDK:'sandisk',SKHYNIX:'skhynix',MRVL:'marvell',GLW:'corning',HOOD:'robinhoodmarkets',CBRS:'',SPCX:'spacex',BTC:'bitcoin',HYPE:'',XAU:'',CL:''};
+ const slug=iconSlugs[symbol];
+ if(logo){
+  logo.hidden=!slug;
+  logo.onerror=()=>{logo.hidden=true;if(logoFallback){logoFallback.hidden=false;logoFallback.textContent=instrument?.icon||symbol.slice(0,1);}};
+  if(slug){logo.src='https://cdn.simpleicons.org/'+slug+'/E8F5FF';if(logoFallback)logoFallback.hidden=true;}
+ }
+ if(logoFallback&&!slug){logoFallback.hidden=false;logoFallback.textContent=instrument?.icon||symbol.slice(0,1);}
+
  if(rows&&rows.length){
   const target=data.warmupBars||4000;
   error.hidden=rows.length>=target;
