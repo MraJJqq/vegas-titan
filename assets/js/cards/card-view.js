@@ -42,40 +42,21 @@ function mount(root,instruments,onSelect){
  }
  root.addEventListener('mc-slot-visibility',onSlotVisibility);
  items.forEach(item=>resizeObserver?.observe(item.nodes.chart));
- const activePointers=new Map();let lastTouchSelectAt=0;
  function select(symbol){if(typeof onSelect==='function')onSelect(symbol);}
  function cardFrom(target){
   const card=target instanceof Element?target.closest('.mc-card[data-symbol]'):null;
   return card&&root.contains(card)?card:null;
  }
- function onPointerDown(event){
-  // Mouse activation is handled by the native click event; this path is touch-only.
-  if(event.pointerType!=='touch'||!event.isPrimary)return;
-  const card=cardFrom(event.target);if(!card)return;
-  activePointers.set(event.pointerId,{card,x:event.clientX,y:event.clientY});
- }
- function onPointerUp(event){
-  if(event.pointerType!=='touch')return;
-  const start=activePointers.get(event.pointerId);activePointers.delete(event.pointerId);
-  if(!start||!start.card.isConnected)return;
-  const moved=Math.hypot(event.clientX-start.x,event.clientY-start.y);
-  // The scroll engine starts a drag at 8px; anything at or beyond that is never a tap.
-  if(moved>=8)return;
-  const released=document.elementFromPoint(event.clientX,event.clientY);
-  if(cardFrom(released)!==start.card)return;
-  lastTouchSelectAt=Date.now();
-  select(start.card.dataset.symbol);
- }
- function onPointerCancel(event){activePointers.delete(event.pointerId);}
+ // One activation path only. Native click is generated for a completed tap on iPad Safari;
+ // relying on pointerup plus click caused the first tap to be consumed by duplicate handling.
  function onClick(event){
-  const card=cardFrom(event.target);if(!card)return;
-  // Suppress only the synthetic click generated after a handled touch tap.
-  if(event.detail!==0&&Date.now()-lastTouchSelectAt<700)return;
+  const path=typeof event.composedPath==='function'?event.composedPath():[];
+  const target=path.find(node=>node instanceof Element&&node.matches('.mc-card[data-symbol]'))||event.target;
+  const card=cardFrom(target);if(!card)return;
+  if(card.dataset.lastActivation&&Date.now()-Number(card.dataset.lastActivation)<350)return;
+  card.dataset.lastActivation=String(Date.now());
   select(card.dataset.symbol);
  }
- root.addEventListener('pointerdown',onPointerDown,{capture:true,passive:true});
- window.addEventListener('pointerup',onPointerUp,{capture:true,passive:true});
- window.addEventListener('pointercancel',onPointerCancel,{capture:true,passive:true});
  root.addEventListener('click',onClick,true);
  let pointerRaf=0,pointerEvent=null;
  function onPointerMove(event){
@@ -127,10 +108,6 @@ function mount(root,instruments,onSelect){
  function destroy(){
   resizeObserver?.disconnect();root.removeEventListener('mc-slot-visibility',onSlotVisibility);
   root.removeEventListener('click',onClick,true);
-  root.removeEventListener('pointerdown',onPointerDown,true);
-  window.removeEventListener('pointerup',onPointerUp,true);
-  window.removeEventListener('pointercancel',onPointerCancel,true);
-  activePointers.clear();
   root.removeEventListener('pointermove',onPointerMove);root.removeEventListener('pointerout',resetTilt);
   ['pointerleave','pointerup','pointercancel'].forEach(type=>root.removeEventListener(type,resetTilt));
   if(pointerRaf)cancelAnimationFrame(pointerRaf);
