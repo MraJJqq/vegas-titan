@@ -38,7 +38,7 @@ function create(root,layers,LWC,getActive){
    wickUpColor:'#2ee6a6',wickDownColor:'#ff5c7c',lastValueVisible:false,priceLineVisible:false
   });
   const lines=EMA.map((length,index)=>chart.addSeries(LWC.LineSeries,{color:COLORS[index],lineWidth:index?2:1,lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:false}));
-  return{layer,host,gesture,chart,candle,lines,rows:[],symbol:'',period:'4H',applying:false,applyId:0,gesturing:false};
+  return{layer,host,gesture,chart,candle,lines,rows:[],symbol:'',period:'4H',applying:false,applyId:0,gesturing:false,expectedRange:null,expectedTimer:0};
  });
  function activeView(){return views[getActive()];}
  function capture(view,syncPeers=false){
@@ -65,13 +65,28 @@ function create(root,layers,LWC,getActive){
   const visible=viewport.visibleBars===null?Math.max(30,Math.floor(width/viewport.barSpacing)):Math.max(1,viewport.visibleBars*ratio);
   const edge=viewport.rightEdgeOffset*ratio,scale=view.chart.timeScale(),to=rows.length-1-edge;
   scale.applyOptions({barSpacing:viewport.barSpacing,rightOffset:viewport.rightOffset});
-  view.applyId++;const id=view.applyId;view.applying=true;
-  try{scale.setVisibleLogicalRange({from:to-visible,to});}catch(error){console.warn('[Vegas Kline] viewport apply failed',error);}
-  requestAnimationFrame(()=>{if(view.applyId===id)view.applying=false;});
+  view.applyId++;view.applying=true;
+  if(view.expectedTimer)clearTimeout(view.expectedTimer);
+  view.expectedRange={from:to-visible,to};
+  try{scale.setVisibleLogicalRange(view.expectedRange);}catch(error){console.warn('[Vegas Kline] viewport apply failed',error);view.expectedRange=null;view.applying=false;}
+  // Chart range notifications may arrive after the next animation frame.
+  // Keep a bounded suppression window and also match the exact target range.
+  view.expectedTimer=setTimeout(()=>{
+   view.expectedTimer=0;view.expectedRange=null;view.applying=false;
+  },350);
   if(commit){viewport.visibleBars=visible;viewport.rightEdgeOffset=edge;viewport.period=period;scheduleSave();}
  }
  views.forEach((view,index)=>view.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{
-  if(index===getActive()&&!view.applying&&!view.gesturing)capture(view,true);
+  if(index!==getActive()||view.gesturing)return;
+  const actual=view.chart.timeScale().getVisibleLogicalRange(),expected=view.expectedRange;
+  if(expected){
+   if(actual&&Math.abs(actual.from-expected.from)<.75&&Math.abs(actual.to-expected.to)<.75){
+    if(view.expectedTimer)clearTimeout(view.expectedTimer);
+    view.expectedTimer=0;view.expectedRange=null;view.applying=false;
+   }
+   return;
+  }
+  if(!view.applying)capture(view,true);
  }));
  function setData(index,rows,symbol,period,preserve=false){
   const view=views[index];if(!view)return;
@@ -110,6 +125,8 @@ function create(root,layers,LWC,getActive){
  function down(event){
   const view=views[getActive()];if(!view.rows.length)return;
   event.preventDefault();try{event.currentTarget.setPointerCapture(event.pointerId)}catch{}
+  if(view.expectedTimer)clearTimeout(view.expectedTimer);
+  view.expectedTimer=0;view.expectedRange=null;view.applying=false;
   pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});view.gesturing=true;
   const r=range(view);if(!r)return;
   if(pointers.size===1)gesture={type:'drag',view,range:r,startX:event.clientX,spacing:Math.max(.5,view.chart.timeScale().options().barSpacing||5)};
@@ -151,7 +168,7 @@ function create(root,layers,LWC,getActive){
  return{views,setData,sync,capture,resize:scheduleResize,destroy(){
   save();clearTimeout(saveTimer);if(resizeFrame)cancelAnimationFrame(resizeFrame);if(viewportCommitFrame)cancelAnimationFrame(viewportCommitFrame);
   resizeObserver?.disconnect();window.removeEventListener('resize',scheduleResize);window.removeEventListener('pagehide',onPageHide);
-  views.forEach(view=>{view.chart.remove();view.gesture.remove();view.host.remove();});
+  views.forEach(view=>{if(view.expectedTimer)clearTimeout(view.expectedTimer);view.chart.remove();view.gesture.remove();view.host.remove();});
  }};
 }
 window.VegasKlineChart={create};
