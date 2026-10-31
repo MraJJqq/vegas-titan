@@ -87,9 +87,8 @@ function currentSymbol(){
 function setLayerStyles(index,transition,duration){
  layers.forEach((layer,i)=>{
   const selected=i===index;
-  layer.style.transition=transition?'opacity '+duration+'ms ease-in-out,filter '+duration+'ms ease-in-out':'none';
+  layer.style.transition=transition?'opacity '+duration+'ms ease-in-out':'none';
   layer.style.opacity=selected?'1':'0';
-  layer.style.filter=selected?'brightness(1)':'brightness(.25)';
   layer.classList.toggle('is-active',selected);
   layer.style.pointerEvents=selected?'auto':'none';
  });
@@ -187,7 +186,7 @@ function scheduleRefresh(delay){
  if(document.hidden||!currentSymbol()||mode==='hidden')return;
  refreshTimer=setTimeout(()=>{
   refreshTimer=0;
-  if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'){
+  if(gesturePaused||mode==='transitioning'||mode==='manual-transition'||mode==='restoring'){
    refreshPending=true;
    return;
   }
@@ -221,10 +220,9 @@ function beginTransition(symbol,duration,kind,id,onComplete){
    return;
   }
   chart.sync(from,to);
-  layers.forEach(layer=>{layer.style.willChange='opacity,filter';});
+  layers.forEach(layer=>{layer.style.willChange='opacity';});
   setLayerStyles(from,false,0);
   layers[to].style.opacity='0';
-  layers[to].style.filter='brightness(.25)';
   layers[to].getBoundingClientRect();
   setLayerStyles(to,true,transitionDuration);
   active=to;
@@ -369,18 +367,16 @@ function beginReveal(){
  const layer=layers[active];
  mode='revealing';
  layer.style.transition='none';
- layer.style.opacity='1';
- layer.style.filter='brightness(.25)';
- layer.getBoundingClientRect();
- layer.style.transition='filter '+REVEAL_MS+'ms ease-out';
+ layer.style.opacity='0';
+  layer.getBoundingClientRect();
+  layer.style.transition='opacity '+REVEAL_MS+'ms ease-out';
  requestAnimationFrame(()=>{
-  if(mode==='revealing'&&!document.hidden)layer.style.filter='brightness(1)';
+  if(mode==='revealing'&&!document.hidden)layer.style.opacity='1';
  });
  clearAutoTimer();
  armAutoTimer(()=>{
   if(mode!=='revealing')return;
   layer.style.transition='';
-  layer.style.filter='brightness(1)';
   initialShown=true;
   mode='idle';
   scheduleAutoHold(INITIAL_HOLD_MS);
@@ -460,12 +456,11 @@ function pause(event){
   };
   pausedTransitionStyles.styles=layers.map(layer=>{
    const style=getComputedStyle(layer);
-   return{opacity:style.opacity,filter:style.filter};
+   return{opacity:style.opacity};
   });
   layers.forEach((layer,index)=>{
    layer.style.transition='none';
    layer.style.opacity=pausedTransitionStyles.styles[index].opacity;
-   layer.style.filter=pausedTransitionStyles.styles[index].filter;
   });
  }
  if(manualTimer){
@@ -481,10 +476,9 @@ function resume(event){
   pausedTransitionStyles=null;
   const duration=pending.remaining;
   layers.forEach((layer,index)=>{
-   layer.style.transition=duration>0?'opacity '+duration+'ms ease-in-out,filter '+duration+'ms ease-in-out':'none';
+   layer.style.transition=duration>0?'opacity '+duration+'ms ease-in-out':'none';
    const selected=index===pending.target;
    layer.style.opacity=selected?'1':'0';
-   layer.style.filter=selected?'brightness(1)':'brightness(.25)';
   });
  }
  if(pausedAutoTimer){
@@ -502,6 +496,7 @@ function resume(event){
    if(manualSymbol)restoreAuto();
   },remaining);
  }
+ applyDeferredRefresh();
 }
 
 function onVisibility(){
