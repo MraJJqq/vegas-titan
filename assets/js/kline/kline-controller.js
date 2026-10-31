@@ -274,7 +274,7 @@ function captureAutoProgress(){
   return{phase:'hold',remaining:Math.max(0,autoDueAt-Date.now()),index:currentIndex};
  }
  if(mode==='transitioning'){
-  return{phase:'transition',remaining:Math.max(0,autoDueAt-Date.now()),index:currentIndex,target:transitionTarget};
+  return{phase:'transition',remaining:autoTimer?Math.max(0,autoDueAt-Date.now()):TRANSITION_MS,index:currentIndex,target:transitionTarget};
  }
  if(mode==='revealing'){
   return{phase:'hold',remaining:INITIAL_HOLD_MS,index:currentIndex};
@@ -471,8 +471,6 @@ function onVisibility(){
   scheduleRefresh();
  });
 }
-root.addEventListener('vr-gesture-start',()=>{});
-root.addEventListener('vr-gesture-end',()=>{});
 document.addEventListener('visibilitychange',onVisibility,{passive:true});
 window.VegasLayer5ShowSymbol=selectSymbol;
 window.VegasLayer5SetAutoQueue=setQueue;
