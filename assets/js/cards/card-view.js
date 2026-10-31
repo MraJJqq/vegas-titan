@@ -49,6 +49,7 @@ function mount(root,instruments,onSelect){
   return card&&root.contains(card)?card:null;
  }
  function onPointerDown(event){
+  if(!event.isPrimary||(event.pointerType==='mouse'&&event.button!==0))return;
   const card=cardFrom(event.target);if(!card)return;
   activePointers.set(event.pointerId,{card,x:event.clientX,y:event.clientY});
  }
@@ -56,7 +57,11 @@ function mount(root,instruments,onSelect){
   const start=activePointers.get(event.pointerId);activePointers.delete(event.pointerId);
   if(!start||!start.card.isConnected)return;
   const moved=Math.hypot(event.clientX-start.x,event.clientY-start.y);
-  if(moved>=10)return;
+  // The scroll engine starts a drag at 8px; anything at or beyond that is never a tap.
+  if(moved>=8)return;
+  // A tap must finish on the same card where it began, not merely nearby or outside the list.
+  const released=document.elementFromPoint(event.clientX,event.clientY);
+  if(cardFrom(released)!==start.card)return;
   lastPointerSelectAt=Date.now();
   select(start.card.dataset.symbol);
  }
