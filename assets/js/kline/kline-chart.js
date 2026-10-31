@@ -114,6 +114,9 @@ function create(root,layers,LWC,getActive){
  function currentRange(view){const r=view.chart.timeScale().getVisibleLogicalRange();return r&&r.to>r.from?{from:r.from,to:r.to,width:r.to-r.from}:null;}
  function applyRange(view,from,to){
   if(!Number.isFinite(from)||!Number.isFinite(to)||to<=from)return;
+  const current=currentRange(view);
+  // Avoid issuing an identical viewport update more than once per rendered frame.
+  if(current&&Math.abs(current.from-from)<.015&&Math.abs(current.to-to)<.015)return;
   try{view.chart.timeScale().setVisibleLogicalRange({from,to});}catch{}
  }
  function point(event){return{x:event.clientX,y:event.clientY};}
