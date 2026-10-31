@@ -1,11 +1,11 @@
 /* Layer 5 chart engine. Owns chart instances, gestures, resize and viewport memory. */
 (function(){
 'use strict';
-const EMA=window.VegasKlineData.emas,PERIODS=window.VegasKlineData.periods;
+const EMA=window.VegasKlineData.emas;
 const COLORS=['#f5d76e','#00B0FF','#00B0FF','#f4d35e','#f4d35e','#ff4e5e','#ff4e5e'];
-const SECONDS={'1H':3600,'4H':14400,'1D':86400},KEY='vegas-layer5-viewport-v3';
+const KEY='vegas-layer5-viewport-v3';
 function create(root,layers,LWC,getActive){
- let viewport={barSpacing:5,rightOffset:3,visibleBars:null,rightEdgeOffset:-3,period:'4H'};
+ let viewport={barSpacing:5,rightOffset:3,visibleBars:null,rightEdgeOffset:-3};
  try{
   const saved=JSON.parse(localStorage.getItem(KEY)||'null');
   if(saved&&typeof saved==='object'){
@@ -13,7 +13,6 @@ function create(root,layers,LWC,getActive){
    if(Number.isFinite(saved.rightOffset))viewport.rightOffset=Math.max(-50,Math.min(100,saved.rightOffset));
    if(Number.isFinite(saved.visibleBars)&&saved.visibleBars>0)viewport.visibleBars=Math.max(1,Math.min(5000,saved.visibleBars));
    if(Number.isFinite(saved.rightEdgeOffset))viewport.rightEdgeOffset=Math.max(-5000,Math.min(50000,saved.rightEdgeOffset));
-   if(PERIODS.includes(saved.period))viewport.period=saved.period;
   }
  }catch{}
  let saveTimer=0,resizeFrame=0;
@@ -50,7 +49,7 @@ function create(root,layers,LWC,getActive){
   viewport.barSpacing=Number.isFinite(options.barSpacing)?options.barSpacing:viewport.barSpacing;
   viewport.rightOffset=Number.isFinite(options.rightOffset)?options.rightOffset:viewport.rightOffset;
   viewport.rightEdgeOffset=view.rows.length-1-range.to;
-  viewport.period=view.period;scheduleSave();
+  scheduleSave();
   // A viewport adjustment is global: mirror it immediately to every loaded symbol view.
   if(syncPeers){
    views.forEach(peer=>{
@@ -60,7 +59,7 @@ function create(root,layers,LWC,getActive){
  }
  function apply(view,rows,period,commit=true){
   if(!rows?.length)return;
-  const ratio=(SECONDS[viewport.period]||14400)/(SECONDS[period]||14400);
+  const ratio=1;
   const width=Math.max(1,view.host.clientWidth||innerWidth||1);
   const visible=viewport.visibleBars===null?Math.max(30,Math.floor(width/viewport.barSpacing)):Math.max(1,viewport.visibleBars*ratio);
   const edge=viewport.rightEdgeOffset*ratio,scale=view.chart.timeScale(),to=rows.length-1-edge;
@@ -74,7 +73,7 @@ function create(root,layers,LWC,getActive){
   view.expectedTimer=setTimeout(()=>{
    view.expectedTimer=0;view.expectedRange=null;view.applying=false;
   },350);
-  if(commit){viewport.visibleBars=visible;viewport.rightEdgeOffset=edge;viewport.period=period;scheduleSave();}
+  if(commit){viewport.visibleBars=visible;viewport.rightEdgeOffset=edge;scheduleSave();}
  }
  views.forEach((view,index)=>view.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{
   if(index!==getActive()||view.gesturing)return;
