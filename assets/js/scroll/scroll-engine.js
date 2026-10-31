@@ -52,7 +52,7 @@ function mount(root,slots){
   const top=root.scrollTop,first=clamp(Math.floor(top/Math.max(1,stride))-2,0,ordered.length-1);
   const last=clamp(Math.ceil((top+height)/Math.max(1,stride))+2,0,ordered.length);
   const center=top+height/2,range=Math.max(1,height*.58),fadeRange=Math.max(1,height*.5);
-  const key=first+':'+last+':'+Math.round(top);
+  const key=first+':'+last+':'+Math.round(top/2);
   if(key===lastFocusRange)return;
   lastFocusRange=key;
   for(let i=first;i<last;i++){
