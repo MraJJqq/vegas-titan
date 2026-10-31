@@ -1,7 +1,7 @@
 /* Layer 5 Bitget candle engine. No DOM or chart state. */
 (function(){
 'use strict';
-const API='https://api.bitget.com';
+const API='https://api.bitget.com',WARMUP_BARS=4000;
 const STOCKS=new Set(['AAPL','MSFT','GOOGL','AMZN','NVDA','TSLA','META','INTC','QCOM','AMD','TSM','AVGO','ORCL','ARM','MU','ASML','SNDK','SKHYNIX','MRVL','GLW','HOOD','CBRS','SPCX']);
 const cache=new Map(),inflight=new Map(),backfills=new Map();
 async function request(path){
@@ -65,7 +65,8 @@ async function history(symbol,period,firstRows){
  const promise=(async()=>{
   const ctx=await context(symbol,period),all=new Map(firstRows.map(row=>[row.time,row]));
   let oldest=Math.min(...all.keys()),endTime=oldest*1000-1;
-  for(let page=0;page<14&&all.size<1200;page++){
+  const maxPages=Math.ceil(WARMUP_BARS/ctx.pageLimit)+2;
+  for(let page=0;page<maxPages&&all.size<WARMUP_BARS;page++){
    const params={...ctx.historyParams,endTime:String(endTime)};
    const rows=normalize(await request(ctx.history+'?'+new URLSearchParams(params)));
    if(!rows.length)break;
@@ -91,5 +92,5 @@ function ema(rows,length){
  for(let i=length;i<rows.length;i++){value=rows[i].close*factor+value*(1-factor);out.push({time:rows[i].time,value});}
  return out;
 }
-window.VegasKlineData={load:latest,complete:history,ema,periods:['4H'],emas:[12,36,43,144,169,576,676]};
+window.VegasKlineData={load:latest,complete:history,ema,warmupBars:WARMUP_BARS,periods:['4H'],emas:[12,36,43,144,169,576,676]};
 })();
