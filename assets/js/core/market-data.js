@@ -72,13 +72,13 @@ async function refresh(instruments,onUpdate,getVisibleSymbols){
    request('/api/v3/market/tickers?category=SPOT'),
    getStockMap()
   ]);
+  const map=mapResult.status==='fulfilled'?mapResult.value:stockMap;
   const neededFutures=new Set(instruments.filter(item=>!item.isSpotStock).map(item=>String(item.contract).toUpperCase()));
-  const neededSpots=new Set(instruments.filter(item=>item.isSpotStock).map(item=>String(mapResult.status==='fulfilled'?mapResult.value.get(item.symbol):stockMap?.get(item.symbol)||'').toUpperCase()).filter(Boolean));
+  const neededSpots=new Set(instruments.filter(item=>item.isSpotStock).map(item=>String(map?.get(item.symbol)||'').toUpperCase()).filter(Boolean));
   const futures=futuresResult.status==='fulfilled'?new Map():null;
   const spots=spotsResult.status==='fulfilled'?new Map():null;
   if(futures)for(const ticker of futuresResult.value){const symbol=String(ticker.symbol||'').toUpperCase();if(neededFutures.has(symbol))futures.set(symbol,ticker);}
   if(spots)for(const ticker of spotsResult.value){const symbol=String(ticker.symbol||'').toUpperCase();if(neededSpots.has(symbol))spots.set(symbol,ticker);}
-  const map=mapResult.status==='fulfilled'?mapResult.value:stockMap;
   instruments.forEach(item=>{
    const previous=snapshots.get(item.symbol)||{candles:[]};
    const exchangeSymbol=item.isSpotStock?map?.get(item.symbol):item.contract;
