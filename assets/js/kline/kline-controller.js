@@ -139,11 +139,21 @@ function beginReveal(){
 function selectSymbol(value){
  const symbol=String(value||'').trim().toUpperCase();
  if(!/^[A-Z0-9.]+$/.test(symbol))return false;
- manualSymbol=symbol;++token;clearTimer();clearRefresh();state='manual';
- showRoot();setLayerStyles(active,false);title.textContent=symbol;error.hidden=true;
- loadLayer(active,symbol).then(loaded=>{
-  if(!loaded||manualSymbol!==symbol||document.hidden||state==='paused')return;
-  updateHeader(symbol,views[active].rows);armManualReturn(symbol);
+ manualSymbol=symbol;++token;const id=token;clearTimer();clearRefresh();state='manual';
+ showRoot();title.textContent=symbol;error.hidden=true;
+ const nextLayer=1-active,oldLayer=active;
+ loadLayer(nextLayer,symbol).then(loaded=>{
+  if(!loaded||id!==token||manualSymbol!==symbol||document.hidden||state==='paused')return;
+  updateHeader(symbol,views[nextLayer].rows);
+  // Crossfade only after the next chart has data; never expose an empty chart canvas.
+  layers.forEach(layer=>{layer.style.transition='opacity 650ms ease,filter 650ms ease';layer.style.willChange='opacity,filter';});
+  layers[oldLayer].style.pointerEvents='none';
+  layers[oldLayer].style.opacity='0';layers[oldLayer].style.filter='brightness(.25)';
+  layers[nextLayer].style.opacity='1';layers[nextLayer].style.filter='brightness(1)';
+  layers[nextLayer].classList.add('is-active');layers[oldLayer].classList.remove('is-active');
+  layers[nextLayer].style.pointerEvents='auto';active=nextLayer;
+  setTimeout(()=>layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';}),700);
+  armManualReturn(symbol);
  });
  scheduleRefresh();return true;
 }
