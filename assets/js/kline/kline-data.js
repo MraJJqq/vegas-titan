@@ -29,13 +29,21 @@ async function readRecord(key){
 async function writeRecord(record){
  const db=await openDB();if(!db)return;
  await new Promise(resolve=>{
-  try{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(record);tx.oncomplete=tx.onerror=tx.onabort=()=>resolve();}
-  catch(error){resolve();}
+  try{
+   const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+   store.put(record);
+   const count=store.count();
+   count.onsuccess=()=>{
+    if(count.result<=MAX_RECORDS)return;
+    const request=store.getAll();
+    request.onsuccess=()=>{
+     const records=(request.result||[]).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
+     records.slice(MAX_RECORDS).forEach(item=>store.delete(item.key));
+    };
+   };
+   tx.oncomplete=tx.onerror=tx.onabort=()=>resolve();
+  }catch(error){resolve();}
  });
- try{
-  const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE),request=store.getAll();
-  request.onsuccess=()=>{const records=(request.result||[]).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));records.slice(MAX_RECORDS).forEach(item=>store.delete(item.key));};
- }catch(error){}
 }
 function keyFor(symbol,period){return String(symbol).toUpperCase()+'|'+period;}
 function hydrate(key,record){
@@ -93,8 +101,8 @@ function updateIndicators(symbol,oldRows,newRows){
   if(common===oldRows.length&&old.length&&newRows.length===oldRows.length)return;
   let out=[],value=0,start=0;
   if(common>=length&&old.length){
-   const priorTime=oldRows[common-1].time,prior=old.find(point=>point.time===priorTime);
-   if(prior){out=old.filter(point=>point.time<=priorTime);value=prior.value;start=common;}
+   const priorTime=oldRows[common-1].time,prior=old[common-length];
+   if(prior&&prior.time===priorTime){out=old.slice(0,common-length+1);value=prior.value;start=common;}
   }
   if(!start){
    if(newRows.length<length){emaCache.set(key,[]);return;}
