@@ -100,27 +100,24 @@ function showRoot(){
  root.hidden=false;
  requestAnimationFrame(()=>chart&&chart.resize());
 }
-function updateHeader(symbol,rows,historyComplete){
- title.textContent=String(symbol||'').toUpperCase();
- const instrument=window.VegasMarketUniverse?.find(item=>item.symbol===symbol);
- const localLogos={AAPL:'apple',NVDA:'nvidia',TSLA:'tesla',META:'meta',INTC:'intel',AMD:'amd',AVGO:'broadcom',ARM:'arm',QCOM:'qualcomm',HOOD:'robinhood',SPCX:'spacex',BTC:'bitcoin'};
- const slug=localLogos[symbol];
+const LOGO_BY_SYMBOL=Object.freeze({AAPL:'apple',NVDA:'nvidia',TSLA:'tesla',META:'meta',INTC:'intel',AMD:'amd',AVGO:'broadcom',ARM:'arm',QCOM:'qualcomm',HOOD:'robinhood',SPCX:'spacex',BTC:'bitcoin'});
+let headerRequest=0;
+function canonicalSymbol(value){
+ const raw=String(value||'').trim().toUpperCase();if(!raw)return '';
+ const item=(window.VegasMarketUniverse||[]).find(entry=>String(entry.symbol||'').trim().toUpperCase()===raw||String(entry.contract||'').trim().toUpperCase()===raw);
+ return item?String(item.symbol).trim().toUpperCase():raw;
+}
+function syncHeader(){
+ const view=views[active],symbol=canonicalSymbol(view?.symbol);if(!view?.hasData||!symbol)return;
+ const request=++headerRequest;title.textContent=symbol;
+ const slug=LOGO_BY_SYMBOL[symbol];
  if(logo){
-  logo.onerror=()=>{logo.hidden=true;if(logoFallback){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}};
-  if(slug){logo.hidden=false;logo.src='./assets/logos/'+slug+'.svg';if(logoFallback)logoFallback.hidden=true;}
-  else{logo.hidden=true;}
+  logo.onerror=()=>{if(request!==headerRequest)return;logo.hidden=true;if(logoFallback){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}};
+  if(slug){const src='./assets/logos/'+slug+'.svg';logo.hidden=false;if(logo.getAttribute('src')!==src)logo.src=src;if(logoFallback)logoFallback.hidden=true;}
+  else{logo.removeAttribute('src');logo.hidden=true;}
  }
  if(logoFallback&&!slug){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}
-
- if(rows&&rows.length){
-  const target=data.warmupBars||4000;
-  error.hidden=rows.length>=target;
-  if(rows.length<target){
-   error.textContent=historyComplete?
-    'Bitget可获取历史仅'+rows.length+'根，未达到红峰预热目标'+target+'根':
-    '红峰历史预热中：'+rows.length+'/'+target+'根';
-  }
- }
+ if(view.rows&&view.rows.length){const target=data.warmupBars||4000;error.hidden=view.rows.length>=target;if(view.rows.length<target)error.textContent=view.historyComplete?'Bitget可获取历史仅'+view.rows.length+'根，未达到红峰预热目标'+target+'根':'红峰历史预热中：'+view.rows.length+'/'+target+'根';}
 }
 function loadLayer(index,symbol){
  const timeframe='4H';
@@ -132,11 +129,12 @@ function loadLayer(index,symbol){
   if(view.requestId!==requestId)return false;
   chart.setData(index,first,symbol,timeframe);
   view.rows=first;
-  view.symbol=symbol;
+  view.symbol=canonicalSymbol(symbol);
+  view.historyComplete=false;
   view.period=timeframe;
   view.hasData=true;
   view.dataAt=Date.now();
-  if(index===active&&symbol===currentSymbol())updateHeader(symbol,first,first.length>=(data.warmupBars||4000));
+  if(index===active)syncHeader();
   if(first.length<(data.warmupBars||4000)){
    data.complete(symbol,timeframe,first).then(rows=>{
     if(view.requestId!==requestId)return;
@@ -149,11 +147,12 @@ function loadLayer(index,symbol){
     }
     chart.setData(index,rows,symbol,timeframe);
     view.rows=rows;
-    view.symbol=symbol;
+    view.symbol=canonicalSymbol(symbol);
+    view.historyComplete=true;
     view.period=timeframe;
     view.hasData=true;
     view.dataAt=Date.now();
-    if(index===active&&symbol===currentSymbol())updateHeader(symbol,rows,true);
+    if(index===active)syncHeader();
    }).catch(exception=>{
     if(index===active&&symbol===currentSymbol()){
      error.textContent='历史数据补齐失败 · '+String(exception.message||exception).slice(0,42);
@@ -186,7 +185,7 @@ function applyDeferredRefresh(){
   view.period=timeframe;
   view.hasData=true;
   view.dataAt=Date.now();
-  if(index===active&&symbol===currentSymbol())updateHeader(symbol,rows,true);
+  if(index===active)syncHeader();
  });
  if(refreshPending){
   refreshPending=false;
@@ -225,7 +224,7 @@ function beginTransition(symbol,duration,kind,id,onComplete){
   if(transitionDuration<=0){
    active=to;
    setLayerStyles(to,false,0);
-   updateHeader(symbol,views[to].rows);
+   syncHeader();
    mode=manualSymbol?'manual':'idle';
    applyDeferredRefresh();
    if(typeof onComplete==='function')onComplete(true);
@@ -238,7 +237,7 @@ function beginTransition(symbol,duration,kind,id,onComplete){
   layers[to].getBoundingClientRect();
   setLayerStyles(to,true,transitionDuration);
   active=to;
-  updateHeader(symbol,views[to].rows);
+  syncHeader();
   const finish=()=>{
    if(id!==generation)return;
    layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
@@ -326,7 +325,7 @@ function restoreAuto(){
    return;
   }
   setLayerStyles(active,false,0);
-  updateHeader(source,views[active].rows);
+  syncHeader();
   if(saved.phase==='transition'&&queue.length>1){
    startAutoTransition(Math.max(0,saved.remaining));
   }else{
@@ -350,7 +349,7 @@ function selectSymbol(value){
  const id=++generation;
  mode='manual-loading';
  showRoot();
- title.textContent=symbol;
+ 
  error.hidden=true;
  const remaining=()=>Math.max(0,manualDeadline-Date.now());
  const start=()=>{
