@@ -169,6 +169,21 @@ function loadLayer(index,symbol){
   return false;
  });
 }
+function onKlineDataUpdated(event){
+ const detail=event.detail||{};
+ const symbol=canonicalSymbol(detail.symbol);
+ if(detail.period!=='4H'||!Array.isArray(detail.rows)||!symbol)return;
+ const index=views.findIndex(view=>canonicalSymbol(view.symbol)===symbol&&view.period==='4H'&&view.hasData);
+ if(index<0)return;
+ const view=views[index];
+ if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'){
+  view.pendingRows=detail.rows;view.pendingSymbol=symbol;view.pendingPeriod='4H';return;
+ }
+ chart.setData(index,detail.rows,symbol,'4H');
+ view.rows=detail.rows;view.dataAt=Date.now();view.historyComplete=view.historyComplete||detail.rows.length>=(data.warmupBars||4000);
+ if(index===active)syncHeader();
+}
+window.addEventListener('vegas-kline-data-updated',onKlineDataUpdated);
 function applyDeferredRefresh(){
  if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring')return;
  views.forEach((view,index)=>{
