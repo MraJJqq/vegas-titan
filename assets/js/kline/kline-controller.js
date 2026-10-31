@@ -5,32 +5,22 @@ if(window.__VEGAS_LAYER5_MOUNTED__)return;
 const root=document.getElementById('vegas-right-scroll'),LWC=window.LightweightCharts,data=window.VegasKlineData;
 if(!root||!LWC||!data||!window.VegasKlineChart){console.error('[Vegas Layer 5] required foundation module missing');return;}
 window.__VEGAS_LAYER5_MOUNTED__=true;
-const single=root.querySelector('.vr-single'),nav=root.querySelector('.vr-periods'),title=root.querySelector('.vr-symbol'),status=root.querySelector('.vr-status'),error=root.querySelector('.vr-error');
+const single=root.querySelector('.vr-single'),title=root.querySelector('.vr-symbol'),status=root.querySelector('.vr-status'),error=root.querySelector('.vr-error');
 const layers=[0,1].map(index=>{
  const layer=document.createElement('div');layer.className='vr-fade-layer'+(index===0?' is-active':'');layer.dataset.layer=String(index);single.prepend(layer);return layer;
 });
 const CLEAR_MS=5000,TRANSITION_MS=5000,REVEAL_MS=1000,INITIAL_HOLD_MS=4000,REFRESH_MS=15000,MANUAL_HOLD_MS=5000;
-let queue=[],currentIndex=0,manualSymbol='',active=0,period='4H',state='hidden',timer=0,refreshTimer=0,token=0,initialShown=false,refreshPending=false;
+let queue=[],currentIndex=0,manualSymbol='',active=0,state='hidden',timer=0,refreshTimer=0,token=0,initialShown=false,refreshPending=false;
 const activePointers=new Set();
-const periodSettings=(()=>{try{const saved=JSON.parse(localStorage.getItem('vegas-right-track-v1')||'{}');return Object.fromEntries(Object.entries(saved).filter(([,v])=>data.periods.includes(v?.period)).map(([s,v])=>[s,v.period]));}catch{return{};}})();
 let chart=null,views=[];
 function ensureChart(){
  if(!chart){chart=window.VegasKlineChart.create(root,layers,LWC,()=>active);views=chart.views;}
  return chart;
 }
 const current=()=>manualSymbol||queue[currentIndex]||'';
-const periodFor=s=>periodSettings[s]||'4H';
-function setPeriodButtons(){
- nav.replaceChildren();
- data.periods.forEach(value=>{
-  const button=document.createElement('button');button.type='button';button.textContent=value;button.classList.toggle('active',value===period);
-  button.addEventListener('click',()=>changePeriod(value));nav.append(button);
- });
-}
 function clearTimer(){if(timer){clearTimeout(timer);timer=0;}}
 function clearRefresh(){if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=0;}}
 
-function savePeriods(){try{localStorage.setItem('vegas-right-track-v1',JSON.stringify(Object.fromEntries(Object.entries(periodSettings).map(([s,p])=>[s,{period:p}]))));}catch{}}
 function setLayerStyles(index,transition=false){
  layers.forEach((layer,i)=>{
   const activeLayer=i===index;layer.style.transition=transition?'opacity '+TRANSITION_MS+'ms ease-in-out,filter '+TRANSITION_MS+'ms ease-in-out':'none';
@@ -49,7 +39,8 @@ function updateHeader(symbol,rows){
   if(rows.length<676)error.textContent='历史K线不足676根，EMA576/EMA676红峰无法完整显示（当前'+rows.length+'根）';
  }else status.textContent='正在加载行情…';
 }
-async function loadLayer(index,symbol,timeframe){
+async function loadLayer(index,symbol){
+ const timeframe='4H';
  if(!symbol)return false;
  const view=views[index],requestId=(view.requestId||0)+1;view.requestId=requestId;
  const changed=view.symbol!==symbol||view.period!==timeframe;
@@ -88,18 +79,18 @@ async function loadLayer(index,symbol,timeframe){
  }
 }
 async function activate(index,symbol){
- active=index;period=periodFor(symbol);setPeriodButtons();title.textContent=symbol;
+ active=index;title.textContent=symbol;
  layers.forEach((layer,i)=>{layer.classList.toggle('is-active',i===index);layer.style.pointerEvents=i===index?'auto':'none';});
  const view=views[index];
  if(view.symbol===symbol&&view.period===period&&view.hasData){updateHeader(symbol,view.rows);return true;}
- return loadLayer(index,symbol,period);
+ return loadLayer(index,symbol);
 }
 function scheduleRefresh(delay=REFRESH_MS){
  clearRefresh();if(document.hidden||!current()||state==='hidden')return;
  refreshTimer=setTimeout(async()=>{
   refreshTimer=0;
   if(state==='preparing'||state==='transitioning'||state==='paused'){refreshPending=true;return;}
-  const symbol=current();await loadLayer(active,symbol,periodFor(symbol));scheduleRefresh();
+  const symbol=current();await loadLayer(active,symbol);scheduleRefresh();
  },delay);
 }
 function applyDeferredRefresh(){
@@ -116,15 +107,15 @@ function transition(){
  if(document.hidden||manualSymbol||queue.length<2||state==='paused')return;
  state='preparing';
  const nextIndex=(currentIndex+1)%queue.length,symbol=queue[nextIndex],nextLayer=1-active,id=++token,view=views[nextLayer];
- const ready=view.symbol===symbol&&view.period===periodFor(symbol)&&view.hasData&&Date.now()-view.dataAt<15000;
- (ready?Promise.resolve(true):loadLayer(nextLayer,symbol,periodFor(symbol))).then(loaded=>{
+ const ready=view.symbol===symbol&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000;
+ (ready?Promise.resolve(true):loadLayer(nextLayer,symbol)).then(loaded=>{
   if(id!==token||document.hidden||state!=='preparing')return;
   if(!loaded||!views[nextLayer].hasData){state='idle';scheduleCycle(1000);return;}
   chart.sync(active,nextLayer);state='transitioning';
   layers.forEach(layer=>layer.style.willChange='opacity,filter');
   setLayerStyles(active,false);layers[nextLayer].style.opacity='0';layers[nextLayer].style.filter='brightness(.25)';
   layers[nextLayer].getBoundingClientRect();setLayerStyles(nextLayer,true);
-  currentIndex=nextIndex;active=nextLayer;period=periodFor(symbol);setPeriodButtons();updateHeader(symbol,views[nextLayer].rows);
+  currentIndex=nextIndex;active=nextLayer;updateHeader(symbol,views[nextLayer].rows);
   timer=setTimeout(()=>{
    timer=0;if(id!==token||state!=='transitioning')return;
    layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
@@ -134,9 +125,9 @@ function transition(){
 }
 function preloadNext(){
  if(manualSymbol||queue.length<2||document.hidden)return;
- const index=(currentIndex+1)%queue.length,symbol=queue[index],view=views[1-active],timeframe=periodFor(symbol);
- if(view.symbol===symbol&&view.period===timeframe&&view.hasData&&Date.now()-view.dataAt<15000)return;
- loadLayer(1-active,symbol,timeframe);
+ const index=(currentIndex+1)%queue.length,symbol=queue[index],view=views[1-active];
+ if(view.symbol===symbol&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000)return;
+ loadLayer(1-active,symbol);
 }
 function beginReveal(){
  const layer=layers[active];state='revealing';layer.style.transition='none';layer.style.opacity='1';layer.style.filter='brightness(.25)';layer.getBoundingClientRect();
@@ -152,8 +143,7 @@ function selectSymbol(value){
  if(!/^[A-Z0-9.]+$/.test(symbol))return false;
  manualSymbol=symbol;++token;clearTimer();clearRefresh();state='manual';
  showRoot();setLayerStyles(active,false);title.textContent=symbol;error.hidden=true;
- period=periodFor(symbol);setPeriodButtons();
- loadLayer(active,symbol,period).then(loaded=>{
+ loadLayer(active,symbol).then(loaded=>{
   if(!loaded||manualSymbol!==symbol||document.hidden||state==='paused')return;
   updateHeader(symbol,views[active].rows);armManualReturn(symbol);
  });
@@ -167,21 +157,6 @@ function armManualReturn(symbol){
   if(!next){hide();return;}
   activate(active,next).then(()=>{state='idle';scheduleCycle(0);scheduleRefresh();});
  },MANUAL_HOLD_MS);
-}
-function changePeriod(value){
- if(!data.periods.includes(value)||value===period)return;
- const symbol=current();if(!symbol)return;
- chart.capture(views[active]);period=value;periodSettings[symbol]=value;savePeriods();setPeriodButtons();
- ++token;clearTimer();state=manualSymbol?'manual':'preparing';
- loadLayer(active,symbol,value).then(ok=>{
-  // A period-button tap must not leave the controller in the pointer-pause state.
-  if(state==='paused'||state==='hidden')return;
-  if(!ok){state=manualSymbol?'manual':'idle';if(!manualSymbol)scheduleCycle(CLEAR_MS);return;}
-  state=manualSymbol?'manual':'idle';
-  applyDeferredRefresh();
-  if(manualSymbol)armManualReturn(symbol);else scheduleCycle(CLEAR_MS);
-  scheduleRefresh();
- });
 }
 function pause(event){
  // Only chart gestures pause the rotation/data pipeline; period buttons and headers do not.
@@ -227,7 +202,7 @@ function setQueue(values){
 function visibility(){
  if(document.hidden){++token;clearTimer();clearRefresh();activePointers.clear();views.forEach(view=>{view.requestId=(view.requestId||0)+1;});state='hidden';return;}
  const symbol=current();if(!symbol)return;
- setLayerStyles(active,false);showRoot();loadLayer(active,symbol,periodFor(symbol)).then(ok=>{
+ setLayerStyles(active,false);showRoot();loadLayer(active,symbol).then(ok=>{
   if(!ok)return;
   state=manualSymbol?'manual':'idle';
   if(!initialShown&&!manualSymbol)beginReveal();
@@ -244,7 +219,6 @@ window.addEventListener('blur',()=>{if(activePointers.size){activePointers.clear
 document.addEventListener('visibilitychange',visibility,{passive:true});
 window.VegasLayer5ShowSymbol=selectSymbol;
 window.VegasLayer5SetAutoQueue=setQueue;
-setPeriodButtons();
 const pendingQueue=window.__VEGAS_PENDING_LAYER5_QUEUE;
 if(Array.isArray(pendingQueue)){delete window.__VEGAS_PENDING_LAYER5_QUEUE;setQueue(pendingQueue);}
 else setQueue(window.VegasFormalSignalSymbols||[]);
