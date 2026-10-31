@@ -5,12 +5,12 @@ if(window.__VEGAS_LAYER5_MOUNTED__)return;
 const root=document.getElementById('vegas-right-scroll'),LWC=window.LightweightCharts,data=window.VegasKlineData;
 if(!root||!LWC||!data||!window.VegasKlineChart){console.error('[Vegas Layer 5] required foundation module missing');return;}
 window.__VEGAS_LAYER5_MOUNTED__=true;
-const single=root.querySelector('.vr-single'),title=root.querySelector('.vr-symbol'),status=root.querySelector('.vr-status'),error=root.querySelector('.vr-error');
+const single=root.querySelector('.vr-single'),title=root.querySelector('.vr-symbol'),error=root.querySelector('.vr-error');
 const layers=[0,1].map(index=>{
  const layer=document.createElement('div');layer.className='vr-fade-layer'+(index===0?' is-active':'');layer.dataset.layer=String(index);single.prepend(layer);return layer;
 });
 const CLEAR_MS=5000,TRANSITION_MS=5000,REVEAL_MS=1000,INITIAL_HOLD_MS=4000,REFRESH_MS=15000,MANUAL_HOLD_MS=5000;
-let queue=[],currentIndex=0,manualSymbol='',active=0,state='hidden',timer=0,refreshTimer=0,token=0,initialShown=false,refreshPending=false;
+let queue=[],currentIndex=0,manualSymbol='',active=0,state='hidden',timer=0,refreshTimer=0,manualTransitionTimer=0,token=0,initialShown=false,refreshPending=false;
 let chart=null,views=[];
 function ensureChart(){
  if(!chart){chart=window.VegasKlineChart.create(root,layers,LWC,()=>active);views=chart.views;}
@@ -19,6 +19,7 @@ function ensureChart(){
 const current=()=>manualSymbol||queue[currentIndex]||'';
 function clearTimer(){if(timer){clearTimeout(timer);timer=0;}}
 function clearRefresh(){if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=0;}}
+function clearManualTransition(){if(manualTransitionTimer){clearTimeout(manualTransitionTimer);manualTransitionTimer=0;}}
 
 function setLayerStyles(index,transition=false){
  layers.forEach((layer,i)=>{
@@ -33,11 +34,10 @@ function showRoot(){
 function updateHeader(symbol,rows,historyComplete=false){
  title.textContent=symbol;
  if(rows?.length){
-  status.textContent=rows.at(-1).close.toLocaleString('en-US',{maximumFractionDigits:5})+' · '+rows.length+'根K线';
   const target=data.warmupBars||4000;
   error.hidden=rows.length>=target;
   if(rows.length<target)error.textContent=historyComplete?'Bitget可获取历史仅'+rows.length+'根，未达到红峰预热目标'+target+'根':'红峰历史预热中：'+rows.length+'/'+target+'根';
- }else status.textContent='正在加载行情…';
+ }
 }
 async function loadLayer(index,symbol){
  const timeframe='4H';
@@ -72,7 +72,7 @@ async function loadLayer(index,symbol){
   return true;
  }catch(exception){
   if(view.requestId===requestId&&index===active&&symbol===current()){
-   status.textContent='数据异常';error.textContent='行情暂不可用 · '+String(exception.message||exception).slice(0,42);error.hidden=false;
+   error.textContent='行情暂不可用 · '+String(exception.message||exception).slice(0,42);error.hidden=false;
   }
   return false;
  }
@@ -140,7 +140,7 @@ function beginReveal(){
 function selectSymbol(value){
  const symbol=String(value||'').trim().toUpperCase();
  if(!/^[A-Z0-9.]+$/.test(symbol))return false;
- manualSymbol=symbol;++token;const id=token;clearTimer();clearRefresh();state='manual';
+ manualSymbol=symbol;++token;const id=token;clearTimer();clearRefresh();clearManualTransition();state='manual';
  showRoot();title.textContent=symbol;error.hidden=true;
  const nextLayer=1-active,oldLayer=active;
  loadLayer(nextLayer,symbol).then(loaded=>{
@@ -160,8 +160,12 @@ function selectSymbol(value){
   layers[nextLayer].style.opacity='1';layers[nextLayer].style.filter='brightness(1)';
   layers[nextLayer].classList.add('is-active');layers[oldLayer].classList.remove('is-active');
   layers[nextLayer].style.pointerEvents='auto';active=nextLayer;
-  setTimeout(()=>layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';}),10050);
-  armManualReturn(symbol);
+  clearManualTransition();
+  manualTransitionTimer=setTimeout(()=>{
+   manualTransitionTimer=0;
+   layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
+   if(id===token&&manualSymbol===symbol&&state!=='paused'&&!document.hidden)armManualReturn(symbol);
+  },10050);
  });
  scheduleRefresh();return true;
 }
@@ -189,14 +193,14 @@ function resume(event){
  requestAnimationFrame(()=>{if(state==='paused'||document.hidden)return;applyDeferredRefresh();if(manualSymbol)armManualReturn(manualSymbol);else scheduleCycle(CLEAR_MS);});
 }
 function hide(){
- ++token;clearTimer();clearRefresh();state='hidden';root.hidden=true;
+ ++token;clearTimer();clearRefresh();clearManualTransition();state='hidden';root.hidden=true;
  views.forEach(view=>{view.requestId=(view.requestId||0)+1;view.hasData=false;view.symbol='';});
  if(chart){chart.capture(views[active]);chart.destroy();chart=null;views=[];}
 }
 function setQueue(values){
  const next=[...new Set((values||[]).map(x=>String(x||'').trim().toUpperCase()).filter(x=>/^[A-Z0-9.]+$/.test(x)))];
  if(next.length===queue.length&&next.every((s,i)=>s===queue[i]))return;
- const previous=current();++token;clearTimer();clearRefresh();
+ const previous=current();++token;clearTimer();clearRefresh();clearManualTransition();
  views.forEach(view=>{view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;});
  setLayerStyles(active,false);state='idle';
  queue=next;currentIndex=Math.max(0,queue.indexOf(previous));if(currentIndex>=queue.length)currentIndex=0;

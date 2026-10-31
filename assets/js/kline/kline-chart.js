@@ -18,7 +18,7 @@ function create(root,layers,LWC,getActive){
    if(legacy&&Number.isFinite(legacy.rightEdgeOffset))viewport.rightGap=clamp(legacy.rightEdgeOffset,-5000,50000);
   }
  }catch{}
- let saveTimer=0,resizeFrame=0,gestureFrame=0,wheelEndTimer=0;
+ let resizeFrame=0,gestureFrame=0,wheelEndTimer=0;
  let activeGesture=null,wheelGesture=false,wheelTarget=null,destroyed=false;
  const views=layers.map(layer=>{
   const host=document.createElement('div');host.className='vr-chart';layer.append(host);
@@ -43,7 +43,6 @@ function create(root,layers,LWC,getActive){
  });
  const activeView=()=>views[getActive()];
  function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(viewport));}catch{}}
- function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{saveTimer=0;save();},120);}
  function targetRange(rows){
   const to=rows.length-1-viewport.rightGap;
   return{from:to-viewport.visibleBars,to};
@@ -206,7 +205,7 @@ function create(root,layers,LWC,getActive){
  document.addEventListener('visibilitychange',onVisibility,{passive:true});
  return{views,setData,sync,capture,resize:scheduleResize,destroy(){
   if(destroyed)return;destroyed=true;
-  clearTimeout(saveTimer);clearTimeout(wheelEndTimer);
+  clearTimeout(wheelEndTimer);
   if(resizeFrame)cancelAnimationFrame(resizeFrame);
   if(gestureFrame)cancelAnimationFrame(gestureFrame);
   pointers.clear();pendingPoints.clear();activeGesture=null;
