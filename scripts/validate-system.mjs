@@ -37,7 +37,7 @@ const layerCss=read('assets/css/right-signal-scroll.css');
 if(layerCss.includes('brightness(')||controller.includes('brightness(')||controller.includes('style.filter'))fail('K-line layers must not animate brightness filters');
 if(!controller.includes('gesturePaused||mode===\'transitioning\'')||!controller.slice(controller.indexOf('function resume('),controller.indexOf('function onVisibility')).includes('applyDeferredRefresh()'))fail('K-line data refresh must defer during gestures and resume afterward');
 if(!view.includes('item.lastDirection!==direction'))fail('Card market updates must skip redundant direction style writes');
-const layerCss=read('assets/css/right-signal-scroll.css');
+const layerCssAgain=read('assets/css/right-signal-scroll.css');
 if(layerCss.includes('brightness(')||controller.includes('brightness(')||controller.includes('style.filter'))fail('K-line layers must not animate brightness filters');
 const resumeBlock=controller.slice(controller.indexOf('function resume('),controller.indexOf('function onVisibility'));
 if(!controller.includes("gesturePaused||mode==='transitioning'")||!resumeBlock.includes('applyDeferredRefresh()'))fail('K-line refresh must defer during gestures and resume afterward');
