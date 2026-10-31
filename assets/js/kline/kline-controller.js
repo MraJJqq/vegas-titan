@@ -127,6 +127,7 @@ function crossfadeToSymbol(symbol,nextIndex,id,onComplete){
    timer=0;
    if(id!==token||state!=='transitioning')return;
    layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
+   state=manualSymbol?'manual':'idle';
    applyDeferredRefresh();
    if(typeof onComplete==='function')onComplete();
   },TRANSITION_MS);
