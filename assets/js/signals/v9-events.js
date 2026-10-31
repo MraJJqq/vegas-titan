@@ -9,6 +9,8 @@
   const $=id=>document.getElementById(id);
   let refreshInProgress=false;
   let hasSuccessfulState=false;
+  let pageQueueInitialized=false;
+  let pageQueue=[];
 
   function symbolName(raw){
     let s=String(raw||"").trim().toUpperCase();
@@ -20,6 +22,14 @@
     const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
     const p={};parts.forEach(x=>{p[x.type]=x.value});
     return p.year+"-"+p.month+"-"+p.day;
+  }
+  function shuffled(values){
+    const result=values.slice();
+    for(let i=result.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [result[i],result[j]]=[result[j],result[i]];
+    }
+    return result;
   }
   function renderSymbols(targetId,symbols){
     const target=$(targetId);
@@ -90,7 +100,15 @@
         const s=symbolName(signal.symbol);
         if(ALLOWED.has(s))seen.add(s);
       }
-      window.VegasFormalSignalSymbols=Array.from(seen);
+      if(!pageQueueInitialized){
+        pageQueue=shuffled(Array.from(seen));
+        pageQueueInitialized=true;
+      }else{
+        pageQueue=pageQueue.filter(symbol=>seen.has(symbol));
+        const additions=Array.from(seen).filter(symbol=>!pageQueue.includes(symbol));
+        pageQueue.push(...shuffled(additions));
+      }
+      window.VegasFormalSignalSymbols=pageQueue.slice();
       if(typeof window.VegasApplyFormalSignals==="function")window.VegasApplyFormalSignals();
       renderSymbols("v9Stocks",STOCK_ORDER.filter(s=>seen.has(s)));
       renderSymbols("v9Core",CORE_ORDER.filter(s=>seen.has(s)));
