@@ -10,7 +10,7 @@ const layers=[0,1].map(index=>{
  const layer=document.createElement('div');layer.className='vr-fade-layer'+(index===0?' is-active':'');layer.dataset.layer=String(index);single.prepend(layer);return layer;
 });
 const CLEAR_MS=5000,TRANSITION_MS=5000,REVEAL_MS=1000,INITIAL_HOLD_MS=4000,REFRESH_MS=15000,MANUAL_HOLD_MS=5000;
-let queue=[],currentIndex=0,manualSymbol='',active=0,state='hidden',timer=0,refreshTimer=0,manualTransitionTimer=0,token=0,initialShown=false,refreshPending=false;
+let queue=[],currentIndex=0,manualSymbol='',active=0,state='hidden',timer=0,refreshTimer=0,token=0,initialShown=false,refreshPending=false;
 let chart=null,views=[];
 function ensureChart(){
  if(!chart){chart=window.VegasKlineChart.create(root,layers,LWC,()=>active);views=chart.views;}
@@ -19,7 +19,6 @@ function ensureChart(){
 const current=()=>manualSymbol||queue[currentIndex]||'';
 function clearTimer(){if(timer){clearTimeout(timer);timer=0;}}
 function clearRefresh(){if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=0;}}
-function clearManualTransition(){if(manualTransitionTimer){clearTimeout(manualTransitionTimer);manualTransitionTimer=0;}}
 
 function setLayerStyles(index,transition=false){
  layers.forEach((layer,i)=>{
@@ -102,24 +101,42 @@ function scheduleCycle(delay=CLEAR_MS){
  state='clear';const id=++token;
  timer=setTimeout(()=>{timer=0;if(id===token&&state==='clear')transition();},delay);
 }
-function transition(){
- if(document.hidden||manualSymbol||queue.length<2||state==='paused')return;
+function crossfadeToSymbol(symbol,nextIndex,id,onComplete){
+ const nextLayer=1-active,view=views[nextLayer];
  state='preparing';
- const nextIndex=(currentIndex+1)%queue.length,symbol=queue[nextIndex],nextLayer=1-active,id=++token,view=views[nextLayer];
  const ready=view.symbol===symbol&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000;
  (ready?Promise.resolve(true):loadLayer(nextLayer,symbol)).then(loaded=>{
   if(id!==token||document.hidden||state!=='preparing')return;
-  if(!loaded||!views[nextLayer].hasData){state='idle';scheduleCycle(1000);return;}
-  chart.sync(active,nextLayer);state='transitioning';
+  if(!loaded||!views[nextLayer].hasData){
+   state=manualSymbol?'manual':'idle';
+   if(!manualSymbol)scheduleCycle(1000);
+   return;
+  }
+  chart.sync(active,nextLayer);
+  state='transitioning';
   layers.forEach(layer=>layer.style.willChange='opacity,filter');
-  setLayerStyles(active,false);layers[nextLayer].style.opacity='0';layers[nextLayer].style.filter='brightness(.25)';
-  layers[nextLayer].getBoundingClientRect();setLayerStyles(nextLayer,true);
-  currentIndex=nextIndex;active=nextLayer;updateHeader(symbol,views[nextLayer].rows);
+  setLayerStyles(active,false);
+  layers[nextLayer].style.opacity='0';
+  layers[nextLayer].style.filter='brightness(.25)';
+  layers[nextLayer].getBoundingClientRect();
+  setLayerStyles(nextLayer,true);
+  active=nextLayer;
+  if(Number.isInteger(nextIndex))currentIndex=nextIndex;
+  updateHeader(symbol,views[nextLayer].rows);
   timer=setTimeout(()=>{
-   timer=0;if(id!==token||state!=='transitioning')return;
+   timer=0;
+   if(id!==token||state!=='transitioning')return;
    layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
-   state='idle';applyDeferredRefresh();preloadNext();scheduleCycle(CLEAR_MS);
+   applyDeferredRefresh();
+   if(typeof onComplete==='function')onComplete();
   },TRANSITION_MS);
+ });
+}
+function transition(){
+ if(document.hidden||manualSymbol||queue.length<2||state==='paused')return;
+ const nextIndex=(currentIndex+1)%queue.length,id=++token;
+ crossfadeToSymbol(queue[nextIndex],nextIndex,id,()=>{
+  state='idle';preloadNext();scheduleCycle(CLEAR_MS);
  });
 }
 function preloadNext(){
@@ -140,32 +157,14 @@ function beginReveal(){
 function selectSymbol(value){
  const symbol=String(value||'').trim().toUpperCase();
  if(!/^[A-Z0-9.]+$/.test(symbol))return false;
- manualSymbol=symbol;++token;const id=token;clearTimer();clearRefresh();clearManualTransition();state='manual';
+ manualSymbol=symbol;
+ const id=++token;
+ clearTimer();clearRefresh();state='manual';
  showRoot();title.textContent=symbol;error.hidden=true;
- const nextLayer=1-active,oldLayer=active;
- loadLayer(nextLayer,symbol).then(loaded=>{
-  if(!loaded||id!==token||manualSymbol!==symbol||document.hidden||state==='paused')return;
-  updateHeader(symbol,views[nextLayer].rows);
-  // Reveal the newly loaded chart over the full 10-second visual cycle.
-  // Prime the incoming layer in its dark state before starting the transition.
-  layers[nextLayer].style.transition='none';
-  layers[nextLayer].style.opacity='0';
-  layers[nextLayer].style.filter='brightness(.25)';
-  layers[nextLayer].style.willChange='opacity,filter';
-  layers[oldLayer].style.willChange='opacity,filter';
-  layers[nextLayer].getBoundingClientRect();
-  layers.forEach(layer=>{layer.style.transition='opacity 10000ms ease-in-out,filter 10000ms ease-in-out';});
-  layers[oldLayer].style.pointerEvents='none';
-  layers[oldLayer].style.opacity='0';layers[oldLayer].style.filter='brightness(.25)';
-  layers[nextLayer].style.opacity='1';layers[nextLayer].style.filter='brightness(1)';
-  layers[nextLayer].classList.add('is-active');layers[oldLayer].classList.remove('is-active');
-  layers[nextLayer].style.pointerEvents='auto';active=nextLayer;
-  clearManualTransition();
-  manualTransitionTimer=setTimeout(()=>{
-   manualTransitionTimer=0;
-   layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
-   if(id===token&&manualSymbol===symbol&&state!=='paused'&&!document.hidden)armManualReturn(symbol);
-  },10050);
+ crossfadeToSymbol(symbol,null,id,()=>{
+  if(id===token&&manualSymbol===symbol&&!document.hidden&&state!=='paused'){
+   state='manual';armManualReturn(symbol);
+  }
  });
  scheduleRefresh();return true;
 }
@@ -173,9 +172,13 @@ function armManualReturn(symbol){
  clearTimer();if(!symbol||manualSymbol!==symbol||document.hidden)return;
  state='manual';timer=setTimeout(()=>{
   timer=0;if(manualSymbol!==symbol)return;
-  manualSymbol='';const next=current();
+  manualSymbol='';
+  const next=current();
   if(!next){hide();return;}
-  activate(active,next).then(()=>{state='idle';scheduleCycle(0);scheduleRefresh();});
+  const id=++token;
+  crossfadeToSymbol(next,null,id,()=>{
+   state='idle';applyDeferredRefresh();scheduleCycle(CLEAR_MS);scheduleRefresh();
+  });
  },MANUAL_HOLD_MS);
 }
 function pause(event){
@@ -193,14 +196,14 @@ function resume(event){
  requestAnimationFrame(()=>{if(state==='paused'||document.hidden)return;applyDeferredRefresh();if(manualSymbol)armManualReturn(manualSymbol);else scheduleCycle(CLEAR_MS);});
 }
 function hide(){
- ++token;clearTimer();clearRefresh();clearManualTransition();state='hidden';root.hidden=true;
+ ++token;clearTimer();clearRefresh();state='hidden';root.hidden=true;
  views.forEach(view=>{view.requestId=(view.requestId||0)+1;view.hasData=false;view.symbol='';});
  if(chart){chart.capture(views[active]);chart.destroy();chart=null;views=[];}
 }
 function setQueue(values){
  const next=[...new Set((values||[]).map(x=>String(x||'').trim().toUpperCase()).filter(x=>/^[A-Z0-9.]+$/.test(x)))];
  if(next.length===queue.length&&next.every((s,i)=>s===queue[i]))return;
- const previous=current();++token;clearTimer();clearRefresh();clearManualTransition();
+ const previous=current();++token;clearTimer();clearRefresh();
  views.forEach(view=>{view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;});
  setLayerStyles(active,false);state='idle';
  queue=next;currentIndex=Math.max(0,queue.indexOf(previous));if(currentIndex>=queue.length)currentIndex=0;
