@@ -106,6 +106,7 @@ function create(root,layers,LWC,getActive){
   const view=activeGesture?.view||wheelTarget?.view||activeView();
   if(gestureFrame){cancelAnimationFrame(gestureFrame);gestureFrame=0;processGestureFrame();}
   if(wheelTarget){applyRange(wheelTarget.view,wheelTarget.from,wheelTarget.to);wheelTarget=null;}
+  clearTimeout(wheelEndTimer);wheelEndTimer=0;
   activeGesture=null;wheelGesture=false;pendingPoints.clear();
   commit(view);
   emit('vr-gesture-end',kind);
@@ -118,6 +119,9 @@ function create(root,layers,LWC,getActive){
  function point(event){return{x:event.clientX,y:event.clientY};}
  function onPointerDown(event){
   const view=views[getActive()];if(!view?.rows.length)return;
+  clearTimeout(wheelEndTimer);wheelEndTimer=0;
+  if(wheelTarget){applyRange(wheelTarget.view,wheelTarget.from,wheelTarget.to);wheelTarget=null;}
+  wheelGesture=false;
   if(event.pointerType==='mouse'&&event.button!==0)return;
   event.preventDefault();
   try{event.currentTarget.setPointerCapture(event.pointerId);}catch{}
@@ -181,7 +185,7 @@ function create(root,layers,LWC,getActive){
   wheelTarget={view,from,to:from+width};
   scheduleGestureFrame();
   clearTimeout(wheelEndTimer);
-  wheelEndTimer=setTimeout(()=>{wheelEndTimer=0;end('wheel');},160);
+  wheelEndTimer=setTimeout(()=>{wheelEndTimer=0;if(pointers.size){wheelEndTimer=setTimeout(()=>{wheelEndTimer=0;if(!pointers.size)end('wheel');},160);return;}end('wheel');},160);
  }
  views.forEach(view=>{
   view.gesture.addEventListener('pointerdown',onPointerDown,{passive:false});
