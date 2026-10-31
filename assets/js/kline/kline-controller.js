@@ -242,10 +242,7 @@ function beginTransition(symbol,duration,kind,id,onComplete){
    setLayerStyles(to,false,0);
    finish();
   }else{
-   autoTimer=setTimeout(()=>{
-    autoTimer=0;
-    finish();
-   },duration);
+   armAutoTimer(finish,duration);
   }
  });
 }
@@ -452,6 +449,8 @@ function setQueue(values){
  });
 }
 
+let pausedTransitionStyles=null;
+let pausedManualRemaining=null;
 function pause(event){
  if(!event||event.type!=='vr-gesture-start'||gesturePaused||mode==='hidden')return;
  gesturePaused=true;
@@ -462,14 +461,54 @@ function pause(event){
   autoTimerCallback=null;
   autoTimerDueAt=0;
  }
+ if(mode==='transitioning'||mode==='manual-transition'){
+  pausedTransitionStyles={
+   remaining:Math.max(0,autoTimerDueAt-Date.now()),
+   target:active
+  };
+  pausedTransitionStyles.styles=layers.map(layer=>{
+   const style=getComputedStyle(layer);
+   return{opacity:style.opacity,filter:style.filter};
+  });
+  layers.forEach((layer,index)=>{
+   layer.style.transition='none';
+   layer.style.opacity=pausedTransitionStyles.styles[index].opacity;
+   layer.style.filter=pausedTransitionStyles.styles[index].filter;
+  });
+ }
+ if(manualTimer){
+  pausedManualRemaining=Math.max(0,manualDeadline-Date.now());
+  clearManualTimer();
+ }
 }
 function resume(event){
  if(!event||event.type!=='vr-gesture-end'||!gesturePaused)return;
  gesturePaused=false;
+ if(pausedTransitionStyles){
+  const pending=pausedTransitionStyles;
+  pausedTransitionStyles=null;
+  const duration=pending.remaining;
+  layers.forEach((layer,index)=>{
+   layer.style.transition=duration>0?'opacity '+duration+'ms ease-in-out,filter '+duration+'ms ease-in-out':'none';
+   const selected=index===pending.target;
+   layer.style.opacity=selected?'1':'0';
+   layer.style.filter=selected?'brightness(1)':'brightness(.25)';
+  });
+ }
  if(pausedAutoTimer){
   const pending=pausedAutoTimer;
   pausedAutoTimer=null;
   armAutoTimer(pending.callback,pending.remaining);
+ }
+ if(pausedManualRemaining!==null){
+  const remaining=pausedManualRemaining;
+  pausedManualRemaining=null;
+  manualDeadline=Date.now()+remaining;
+  clearManualTimer();
+  manualTimer=setTimeout(()=>{
+   manualTimer=0;
+   if(manualSymbol)restoreAuto();
+  },remaining);
  }
 }
 
