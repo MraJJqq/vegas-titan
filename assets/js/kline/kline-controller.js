@@ -1,241 +1,481 @@
-/* Layer 5 composition root. Owns visibility, signal queue, rotation and manual selection. */
+/* Layer 5 composition root. Single scheduler for automatic rotation and 10-second manual insertion. */
 (function(){
 'use strict';
 if(window.__VEGAS_LAYER5_MOUNTED__)return;
-const root=document.getElementById('vegas-right-scroll'),LWC=window.LightweightCharts,data=window.VegasKlineData;
-if(!root||!LWC||!data||!window.VegasKlineChart){console.error('[Vegas Layer 5] required foundation module missing');return;}
+const root=document.getElementById('vegas-right-scroll');
+const LWC=window.LightweightCharts,data=window.VegasKlineData;
+if(!root||!LWC||!data||!window.VegasKlineChart){
+ console.error('[Vegas Layer 5] required foundation module missing');return;
+}
 window.__VEGAS_LAYER5_MOUNTED__=true;
-const single=root.querySelector('.vr-single'),title=root.querySelector('.vr-symbol'),error=root.querySelector('.vr-error');
+const single=root.querySelector('.vr-single');
+const title=root.querySelector('.vr-symbol');
+const error=root.querySelector('.vr-error');
 const layers=[0,1].map(index=>{
- const layer=document.createElement('div');layer.className='vr-fade-layer'+(index===0?' is-active':'');layer.dataset.layer=String(index);single.prepend(layer);return layer;
+ const layer=document.createElement('div');
+ layer.className='vr-fade-layer'+(index===0?' is-active':'');
+ layer.dataset.layer=String(index);
+ single.prepend(layer);
+ return layer;
 });
-const CLEAR_MS=5000,TRANSITION_MS=5000,REVEAL_MS=1000,INITIAL_HOLD_MS=4000,REFRESH_MS=15000,MANUAL_HOLD_MS=5000;
-let queue=[],currentIndex=0,manualSymbol='',active=0,state='hidden',timer=0,refreshTimer=0,token=0,initialShown=false,refreshPending=false;
-let chart=null,views=[];
+
+const HOLD_MS=5000;
+const TRANSITION_MS=5000;
+const MANUAL_TOTAL_MS=10000;
+const REVEAL_MS=1000;
+const INITIAL_HOLD_MS=4000;
+const REFRESH_MS=15000;
+
+let queue=[];
+let currentIndex=0;
+let active=0;
+let mode='hidden';
+let autoPhase='hold';
+let autoTimer=0;
+let manualTimer=0;
+let refreshTimer=0;
+let autoDueAt=0;
+let transitionTarget=-1;
+let autoSnapshot=null;
+let manualSymbol='';
+let manualDeadline=0;
+let generation=0;
+let initialShown=false;
+let refreshPending=false;
+let chart=null;
+let views=[];
+
 function ensureChart(){
- if(!chart){chart=window.VegasKlineChart.create(root,layers,LWC,()=>active);views=chart.views;}
+ if(!chart){
+  chart=window.VegasKlineChart.create(root,layers,LWC,()=>active);
+  views=chart.views;
+ }
  return chart;
 }
-const current=()=>manualSymbol||queue[currentIndex]||'';
-function clearTimer(){if(timer){clearTimeout(timer);timer=0;}}
-function clearRefresh(){if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=0;}}
-
-function setLayerStyles(index,transition=false){
+function clearAutoTimer(){
+ if(autoTimer){clearTimeout(autoTimer);autoTimer=0;}
+}
+function clearManualTimer(){
+ if(manualTimer){clearTimeout(manualTimer);manualTimer=0;}
+}
+function clearRefreshTimer(){
+ if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=0;}
+}
+function currentAutoSymbol(){
+ return queue[currentIndex]||'';
+}
+function currentSymbol(){
+ return manualSymbol||currentAutoSymbol();
+}
+function setLayerStyles(index,transition,duration){
  layers.forEach((layer,i)=>{
-  const activeLayer=i===index;layer.style.transition=transition?'opacity '+TRANSITION_MS+'ms ease-in-out,filter '+TRANSITION_MS+'ms ease-in-out':'none';
-  layer.style.opacity=activeLayer?'1':'0';layer.style.filter=activeLayer?'brightness(1)':'brightness(.25)';
-  layer.classList.toggle('is-active',activeLayer);layer.style.pointerEvents=activeLayer?'auto':'none';
+  const selected=i===index;
+  layer.style.transition=transition?'opacity '+duration+'ms ease-in-out,filter '+duration+'ms ease-in-out':'none';
+  layer.style.opacity=selected?'1':'0';
+  layer.style.filter=selected?'brightness(1)':'brightness(.25)';
+  layer.classList.toggle('is-active',selected);
+  layer.style.pointerEvents=selected?'auto':'none';
  });
 }
 function showRoot(){
- ensureChart();root.hidden=false;requestAnimationFrame(()=>chart?.resize());
+ ensureChart();
+ root.hidden=false;
+ requestAnimationFrame(()=>chart&&chart.resize());
 }
-function updateHeader(symbol,rows,historyComplete=false){
+function updateHeader(symbol,rows,historyComplete){
  title.textContent=symbol;
- if(rows?.length){
+ if(rows&&rows.length){
   const target=data.warmupBars||4000;
   error.hidden=rows.length>=target;
-  if(rows.length<target)error.textContent=historyComplete?'Bitget可获取历史仅'+rows.length+'根，未达到红峰预热目标'+target+'根':'红峰历史预热中：'+rows.length+'/'+target+'根';
+  if(rows.length<target){
+   error.textContent=historyComplete?
+    'Bitget可获取历史仅'+rows.length+'根，未达到红峰预热目标'+target+'根':
+    '红峰历史预热中：'+rows.length+'/'+target+'根';
+  }
  }
 }
-async function loadLayer(index,symbol){
+function loadLayer(index,symbol){
  const timeframe='4H';
- if(!symbol)return false;
- const view=views[index],requestId=(view.requestId||0)+1;view.requestId=requestId;
- try{
-  const first=await data.load(symbol,timeframe);
+ if(!symbol)return Promise.resolve(false);
+ const view=views[index];
+ const requestId=(view.requestId||0)+1;
+ view.requestId=requestId;
+ return data.load(symbol,timeframe).then(first=>{
   if(view.requestId!==requestId)return false;
-  if(state==='paused'){
-   // Do not replace candle data while a pointer gesture is in progress.
-   view.pendingRows=first;view.pendingSymbol=symbol;view.pendingPeriod=timeframe;
-  }else{
-   chart.setData(index,first,symbol,timeframe);
-   view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
-  }
-  if(index===active&&symbol===current())updateHeader(symbol,first,first.length>=(data.warmupBars||4000));
+  chart.setData(index,first,symbol,timeframe);
+  view.symbol=symbol;
+  view.period=timeframe;
+  view.hasData=true;
+  view.dataAt=Date.now();
+  if(index===active&&symbol===currentSymbol())updateHeader(symbol,first,first.length>=(data.warmupBars||4000));
   if(first.length<(data.warmupBars||4000)){
    data.complete(symbol,timeframe,first).then(rows=>{
     if(view.requestId!==requestId)return;
-    const targetSymbol=view.pendingSymbol||view.symbol,targetPeriod=view.pendingPeriod||view.period;
-    if(targetSymbol!==symbol||targetPeriod!==timeframe)return;
-    if(state==='transitioning'||state==='paused'||state==='preparing'){
-     view.pendingRows=rows;view.pendingSymbol=symbol;view.pendingPeriod=timeframe;return;
+    if(view.symbol!==symbol||view.period!==timeframe)return;
+    if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'){
+     view.pendingRows=rows;
+     view.pendingSymbol=symbol;
+     view.pendingPeriod=timeframe;
+     return;
     }
     chart.setData(index,rows,symbol,timeframe);
-    view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
-    if(index===active&&symbol===current())updateHeader(symbol,rows,true);
+    view.rows=rows;
+    view.symbol=symbol;
+    view.period=timeframe;
+    view.hasData=true;
+    view.dataAt=Date.now();
+    if(index===active&&symbol===currentSymbol())updateHeader(symbol,rows,true);
    }).catch(exception=>{
-    if(index===active&&symbol===current()){error.textContent='历史数据补齐失败 · '+String(exception.message||exception).slice(0,42);error.hidden=false;}
+    if(index===active&&symbol===currentSymbol()){
+     error.textContent='历史数据补齐失败 · '+String(exception.message||exception).slice(0,42);
+     error.hidden=false;
+    }
    });
   }
   return true;
- }catch(exception){
-  if(view.requestId===requestId&&index===active&&symbol===current()){
-   error.textContent='行情暂不可用 · '+String(exception.message||exception).slice(0,42);error.hidden=false;
+ }).catch(exception=>{
+  if(view.requestId===requestId&&index===active&&symbol===currentSymbol()){
+   error.textContent='行情暂不可用 · '+String(exception.message||exception).slice(0,42);
+   error.hidden=false;
   }
   return false;
- }
-}
-async function activate(index,symbol){
- active=index;title.textContent=symbol;
- layers.forEach((layer,i)=>{layer.classList.toggle('is-active',i===index);layer.style.pointerEvents=i===index?'auto':'none';});
- const view=views[index];
- if(view.symbol===symbol&&view.period==='4H'&&view.hasData){updateHeader(symbol,view.rows);return true;}
- return loadLayer(index,symbol);
-}
-function scheduleRefresh(delay=REFRESH_MS){
- clearRefresh();if(document.hidden||!current()||state==='hidden')return;
- refreshTimer=setTimeout(async()=>{
-  refreshTimer=0;
-  if(state==='preparing'||state==='transitioning'||state==='paused'){refreshPending=true;return;}
-  const symbol=current();await loadLayer(active,symbol);scheduleRefresh();
- },delay);
-}
-function applyDeferredRefresh(){
- if(state==='paused'||state==='preparing'||state==='transitioning')return;
- views.forEach((view,index)=>{if(view.pendingRows){const rows=view.pendingRows,symbol=view.pendingSymbol||view.symbol,timeframe=view.pendingPeriod||view.period;view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;chart.setData(index,rows,symbol,timeframe);view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();if(index===active&&symbol===current())updateHeader(symbol,rows);}});
- if(refreshPending){refreshPending=false;scheduleRefresh(0);}
-}
-function scheduleCycle(delay=CLEAR_MS){
- clearTimer();if(document.hidden||manualSymbol||queue.length<2||state==='paused'||state==='hidden')return;
- state='clear';const id=++token;
- timer=setTimeout(()=>{timer=0;if(id===token&&state==='clear')transition();},delay);
-}
-function crossfadeToSymbol(symbol,nextIndex,id,onComplete){
- const nextLayer=1-active,view=views[nextLayer];
- state='preparing';
- const ready=view.symbol===symbol&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000;
- (ready?Promise.resolve(true):loadLayer(nextLayer,symbol)).then(loaded=>{
-  if(id!==token||document.hidden||state!=='preparing')return;
-  if(!loaded||!views[nextLayer].hasData){
-   state=manualSymbol?'manual':'idle';
-   if(!manualSymbol)scheduleCycle(1000);
-   return;
-  }
-  chart.sync(active,nextLayer);
-  state='transitioning';
-  layers.forEach(layer=>layer.style.willChange='opacity,filter');
-  setLayerStyles(active,false);
-  layers[nextLayer].style.opacity='0';
-  layers[nextLayer].style.filter='brightness(.25)';
-  layers[nextLayer].getBoundingClientRect();
-  setLayerStyles(nextLayer,true);
-  active=nextLayer;
-  if(Number.isInteger(nextIndex))currentIndex=nextIndex;
-  updateHeader(symbol,views[nextLayer].rows);
-  timer=setTimeout(()=>{
-   timer=0;
-   if(id!==token||state!=='transitioning')return;
-   layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
-   state=manualSymbol?'manual':'idle';
-   applyDeferredRefresh();
-   if(typeof onComplete==='function')onComplete();
-  },TRANSITION_MS);
  });
 }
-function transition(){
- if(document.hidden||manualSymbol||queue.length<2||state==='paused')return;
- const nextIndex=(currentIndex+1)%queue.length,id=++token;
- crossfadeToSymbol(queue[nextIndex],nextIndex,id,()=>{
-  state='idle';preloadNext();scheduleCycle(CLEAR_MS);
+function applyDeferredRefresh(){
+ if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring')return;
+ views.forEach((view,index)=>{
+  if(!view.pendingRows)return;
+  const rows=view.pendingRows;
+  const symbol=view.pendingSymbol||view.symbol;
+  const timeframe=view.pendingPeriod||view.period;
+  view.pendingRows=null;
+  view.pendingSymbol=null;
+  view.pendingPeriod=null;
+  chart.setData(index,rows,symbol,timeframe);
+  view.rows=rows;
+  view.symbol=symbol;
+  view.period=timeframe;
+  view.hasData=true;
+  view.dataAt=Date.now();
+  if(index===active&&symbol===currentSymbol())updateHeader(symbol,rows,true);
+ });
+ if(refreshPending){
+  refreshPending=false;
+  scheduleRefresh(0);
+ }
+}
+function scheduleRefresh(delay){
+ clearRefreshTimer();
+ if(document.hidden||!currentSymbol()||mode==='hidden')return;
+ refreshTimer=setTimeout(()=>{
+  refreshTimer=0;
+  if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'){
+   refreshPending=true;
+   return;
+  }
+  const symbol=currentSymbol();
+  loadLayer(active,symbol).then(()=>scheduleRefresh(REFRESH_MS));
+ },delay===undefined?REFRESH_MS:delay);
+}
+function beginTransition(symbol,duration,kind,id,onComplete){
+ const from=active;
+ const to=1-from;
+ mode=kind;
+ const view=views[to];
+ const fresh=view.symbol===symbol&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000;
+ const ready=fresh?Promise.resolve(true):loadLayer(to,symbol);
+ ready.then(loaded=>{
+  if(id!==generation||document.hidden)return;
+  if(!loaded||!views[to].hasData){
+   mode=manualSymbol?'manual':'idle';
+   if(typeof onComplete==='function')onComplete(false);
+   return;
+  }
+  chart.sync(from,to);
+  layers.forEach(layer=>{layer.style.willChange='opacity,filter';});
+  setLayerStyles(from,false,0);
+  layers[to].style.opacity='0';
+  layers[to].style.filter='brightness(.25)';
+  layers[to].getBoundingClientRect();
+  setLayerStyles(to,true,duration);
+  active=to;
+  updateHeader(symbol,views[to].rows);
+  const finish=()=>{
+   if(id!==generation)return;
+   layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
+   mode=manualSymbol?'manual':'idle';
+   applyDeferredRefresh();
+   if(typeof onComplete==='function')onComplete(true);
+  };
+  if(duration<=0){
+   setLayerStyles(to,false,0);
+   finish();
+  }else{
+   autoTimer=setTimeout(()=>{
+    autoTimer=0;
+    finish();
+   },duration);
+  }
+ });
+}
+function scheduleAutoHold(delay){
+ clearAutoTimer();
+ if(document.hidden||manualSymbol||queue.length<2||mode==='hidden')return;
+ autoPhase='hold';
+ autoDueAt=Date.now()+Math.max(0,delay);
+ mode='auto-hold';
+ autoTimer=setTimeout(()=>{
+  autoTimer=0;
+  if(manualSymbol||document.hidden)return;
+  startAutoTransition(TRANSITION_MS);
+ },Math.max(0,delay));
+}
+function startAutoTransition(duration){
+ if(document.hidden||manualSymbol||queue.length<2)return;
+ clearAutoTimer();
+ const nextIndex=(currentIndex+1)%queue.length;
+ transitionTarget=nextIndex;
+ autoPhase='transition';
+ autoDueAt=Date.now()+Math.max(0,duration);
+ const id=++generation;
+ beginTransition(queue[nextIndex],duration,'transitioning',id,ok=>{
+  if(id!==generation||manualSymbol)return;
+  if(!ok){
+   scheduleAutoHold(1000);
+   return;
+  }
+  currentIndex=nextIndex;
+  transitionTarget=-1;
+  preloadNext();
+  scheduleAutoHold(HOLD_MS);
  });
 }
 function preloadNext(){
  if(manualSymbol||queue.length<2||document.hidden)return;
- const index=(currentIndex+1)%queue.length,symbol=queue[index],view=views[1-active];
- if(view.symbol===symbol&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000)return;
- loadLayer(1-active,symbol);
+ const index=(currentIndex+1)%queue.length;
+ const view=views[1-active];
+ if(view.symbol===queue[index]&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000)return;
+ loadLayer(1-active,queue[index]);
 }
-function beginReveal(){
- const layer=layers[active];state='revealing';layer.style.transition='none';layer.style.opacity='1';layer.style.filter='brightness(.25)';layer.getBoundingClientRect();
- layer.style.transition='filter '+REVEAL_MS+'ms ease-out';
- requestAnimationFrame(()=>{if(state==='revealing'&&!document.hidden)layer.style.filter='brightness(1)';});
- clearTimer();timer=setTimeout(()=>{
-  timer=0;layer.style.transition='';layer.style.filter='brightness(1)';initialShown=true;state=manualSymbol?'manual':'idle';
-  if(!manualSymbol)scheduleCycle(INITIAL_HOLD_MS);
- },REVEAL_MS);
+function captureAutoProgress(){
+ if(manualSymbol)return autoSnapshot;
+ if(mode==='auto-hold'){
+  return{phase:'hold',remaining:Math.max(0,autoDueAt-Date.now()),index:currentIndex};
+ }
+ if(mode==='transitioning'){
+  return{phase:'transition',remaining:Math.max(0,autoDueAt-Date.now()),index:currentIndex,target:transitionTarget};
+ }
+ if(mode==='revealing'){
+  return{phase:'hold',remaining:INITIAL_HOLD_MS,index:currentIndex};
+ }
+ return{phase:'hold',remaining:HOLD_MS,index:currentIndex};
+}
+function restoreAuto(){
+ clearManualTimer();
+ manualSymbol='';
+ if(!queue.length){
+  hide();
+  return;
+ }
+ const saved=autoSnapshot||{phase:'hold',remaining:HOLD_MS,index:currentIndex};
+ autoSnapshot=null;
+ currentIndex=queue.length?Math.max(0,Math.min(saved.index,queue.length-1)):0;
+ const source=currentAutoSymbol();
+ const id=++generation;
+ clearAutoTimer();
+ mode='restoring';
+ const sourceView=views[active];
+ const restoreSource=sourceView.symbol===source&&sourceView.period==='4H'&&sourceView.hasData?
+  Promise.resolve(true):loadLayer(active,source);
+ restoreSource.then(ok=>{
+  if(id!==generation||manualSymbol||document.hidden)return;
+  if(!ok){
+   mode='idle';
+   scheduleAutoHold(1000);
+   return;
+  }
+  setLayerStyles(active,false,0);
+  updateHeader(source,views[active].rows);
+  if(saved.phase==='transition'&&queue.length>1){
+   const targetIndex=(currentIndex+1)%queue.length;
+   startAutoTransition(Math.max(0,saved.remaining));
+  }else{
+   mode='idle';
+   preloadNext();
+   scheduleAutoHold(Math.max(0,saved.remaining));
+  }
+  scheduleRefresh();
+ });
 }
 function selectSymbol(value){
  const symbol=String(value||'').trim().toUpperCase();
  if(!/^[A-Z0-9.]+$/.test(symbol))return false;
+ const now=Date.now();
+ if(!manualSymbol)autoSnapshot=captureAutoProgress();
  manualSymbol=symbol;
- const id=++token;
- clearTimer();clearRefresh();state='manual';
- showRoot();title.textContent=symbol;error.hidden=true;
- crossfadeToSymbol(symbol,null,id,()=>{
-  if(id===token&&manualSymbol===symbol&&!document.hidden&&state!=='paused'){
-   state='manual';armManualReturn(symbol);
-  }
- });
- scheduleRefresh();return true;
-}
-function armManualReturn(symbol){
- clearTimer();if(!symbol||manualSymbol!==symbol||document.hidden)return;
- state='manual';timer=setTimeout(()=>{
-  timer=0;if(manualSymbol!==symbol)return;
-  manualSymbol='';
-  const next=current();
-  if(!next){hide();return;}
-  const id=++token;
-  crossfadeToSymbol(next,null,id,()=>{
-   state='idle';applyDeferredRefresh();scheduleCycle(CLEAR_MS);scheduleRefresh();
+ manualDeadline=now+MANUAL_TOTAL_MS;
+ clearAutoTimer();
+ clearManualTimer();
+ clearRefreshTimer();
+ const id=++generation;
+ mode='manual-loading';
+ showRoot();
+ title.textContent=symbol;
+ error.hidden=true;
+ const remaining=()=>Math.max(0,manualDeadline-Date.now());
+ const start=()=>{
+  if(id!==generation||manualSymbol!==symbol||document.hidden)return;
+  const duration=Math.min(TRANSITION_MS,remaining());
+  if(duration<=0){restoreAuto();return;}
+  beginTransition(symbol,duration,'manual-transition',id,()=>{
+   if(id!==generation||manualSymbol!==symbol)return;
+   mode='manual';
   });
- },MANUAL_HOLD_MS);
+ };
+ const dominant=()=>{
+  const opacity=layers.map(layer=>parseFloat(getComputedStyle(layer).opacity)||0);
+  active=opacity[1]>opacity[0]?1:0;
+  setLayerStyles(active,false,0);
+ };
+ dominant();
+ start();
+ manualTimer=setTimeout(()=>{
+  manualTimer=0;
+  if(id===generation&&manualSymbol===symbol)restoreAuto();
+ },Math.max(0,remaining()));
+ scheduleRefresh();
+ return true;
 }
-function pause(event){
- if(!event||event.type!=='vr-gesture-start'||state==='paused'||state==='hidden')return;
- ++token;clearTimer();
- const frozen=layers.map(layer=>({opacity:getComputedStyle(layer).opacity,filter:getComputedStyle(layer).filter}));
- layers.forEach((layer,i)=>{layer.style.transition='none';layer.style.opacity=frozen[i].opacity;layer.style.filter=frozen[i].filter;});
- state='paused';
-}
-function resume(event){
- if(!event||event.type!=='vr-gesture-end'||state!=='paused')return;
- setLayerStyles(active,false);
- layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
- state=manualSymbol?'manual':'idle';
- requestAnimationFrame(()=>{if(state==='paused'||document.hidden)return;applyDeferredRefresh();if(manualSymbol)armManualReturn(manualSymbol);else scheduleCycle(CLEAR_MS);});
+function beginReveal(){
+ const layer=layers[active];
+ mode='revealing';
+ layer.style.transition='none';
+ layer.style.opacity='1';
+ layer.style.filter='brightness(.25)';
+ layer.getBoundingClientRect();
+ layer.style.transition='filter '+REVEAL_MS+'ms ease-out';
+ requestAnimationFrame(()=>{
+  if(mode==='revealing'&&!document.hidden)layer.style.filter='brightness(1)';
+ });
+ clearAutoTimer();
+ autoTimer=setTimeout(()=>{
+  autoTimer=0;
+  if(mode!=='revealing')return;
+  layer.style.transition='';
+  layer.style.filter='brightness(1)';
+  initialShown=true;
+  mode='idle';
+  scheduleAutoHold(INITIAL_HOLD_MS);
+ },REVEAL_MS);
 }
 function hide(){
- ++token;clearTimer();clearRefresh();state='hidden';root.hidden=true;
- views.forEach(view=>{view.requestId=(view.requestId||0)+1;view.hasData=false;view.symbol='';});
- if(chart){chart.capture(views[active]);chart.destroy();chart=null;views=[];}
+ ++generation;
+ clearAutoTimer();
+ clearManualTimer();
+ clearRefreshTimer();
+ mode='hidden';
+ manualSymbol='';
+ autoSnapshot=null;
+ root.hidden=true;
+ views.forEach(view=>{
+  view.requestId=(view.requestId||0)+1;
+  view.hasData=false;
+  view.symbol='';
+ });
+ if(chart){
+  chart.capture(views[active]);
+  chart.destroy();
+  chart=null;
+  views=[];
+ }
 }
 function setQueue(values){
  const next=[...new Set((values||[]).map(x=>String(x||'').trim().toUpperCase()).filter(x=>/^[A-Z0-9.]+$/.test(x)))];
- if(next.length===queue.length&&next.every((s,i)=>s===queue[i]))return;
- const previous=current();++token;clearTimer();clearRefresh();
- views.forEach(view=>{view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;});
- setLayerStyles(active,false);state='idle';
- queue=next;currentIndex=Math.max(0,queue.indexOf(previous));if(currentIndex>=queue.length)currentIndex=0;
+ if(next.length===queue.length&&next.every((symbol,index)=>symbol===queue[index]))return;
+ const previous=currentAutoSymbol();
+ queue=next;
+ const retained=queue.indexOf(previous);
+ currentIndex=retained>=0?retained:0;
+ if(autoSnapshot)autoSnapshot.index=currentIndex;
  if(!queue.length&&!manualSymbol){hide();return;}
- showRoot();const symbol=current();
- activate(active,symbol).then(ok=>{
-  if(!ok)return;
-  if(!initialShown&&!manualSymbol)beginReveal();
-  else if(!manualSymbol){state='idle';preloadNext();scheduleCycle(CLEAR_MS);}
+ if(manualSymbol){
+  if(autoSnapshot&&autoSnapshot.phase==='transition')autoSnapshot.target=(currentIndex+1)%queue.length;
+  return;
+ }
+ ++generation;
+ clearAutoTimer();
+ clearRefreshTimer();
+ views.forEach(view=>{
+  view.pendingRows=null;
+  view.pendingSymbol=null;
+  view.pendingPeriod=null;
+ });
+ setLayerStyles(active,false,0);
+ if(!queue.length){hide();return;}
+ showRoot();
+ const symbol=currentAutoSymbol();
+ loadLayer(active,symbol).then(ok=>{
+  if(!ok||manualSymbol)return;
+  if(!initialShown)beginReveal();
+  else{
+   mode='idle';
+   preloadNext();
+   scheduleAutoHold(HOLD_MS);
+  }
   scheduleRefresh();
  });
 }
-function visibility(){
- if(document.hidden){++token;clearTimer();clearRefresh();views.forEach(view=>{view.requestId=(view.requestId||0)+1;});state='hidden';return;}
- const symbol=current();if(!symbol)return;
- setLayerStyles(active,false);showRoot();loadLayer(active,symbol).then(ok=>{
-  if(!ok)return;
-  state=manualSymbol?'manual':'idle';
-  if(!initialShown&&!manualSymbol)beginReveal();
-  else if(!manualSymbol)scheduleCycle(CLEAR_MS);
-  if(manualSymbol)armManualReturn(symbol);
+function onVisibility(){
+ if(document.hidden){
+  if(mode==='auto-hold'||mode==='transitioning'){
+   autoSnapshot=captureAutoProgress();
+  }
+  if(manualSymbol)manualDeadline=Date.now()+Math.max(0,manualDeadline-Date.now());
+  ++generation;
+  clearAutoTimer();
+  clearManualTimer();
+  clearRefreshTimer();
+  views.forEach(view=>{view.requestId=(view.requestId||0)+1;});
+  mode='hidden';
+  return;
+ }
+ const symbol=currentSymbol();
+ if(!symbol)return;
+ showRoot();
+ const id=++generation;
+ loadLayer(active,symbol).then(ok=>{
+  if(!ok||id!==generation)return;
+  setLayerStyles(active,false,0);
+  if(manualSymbol){
+   mode='manual';
+   const remaining=Math.max(0,manualDeadline-Date.now());
+   manualTimer=setTimeout(()=>{manualTimer=0;if(id===generation&&manualSymbol)restoreAuto();},remaining);
+  }else if(!initialShown){
+   beginReveal();
+  }else{
+   const saved=autoSnapshot||{phase:'hold',remaining:HOLD_MS,index:currentIndex};
+   autoSnapshot=null;
+   if(saved.phase==='transition'&&queue.length>1)startAutoTransition(saved.remaining);
+   else scheduleAutoHold(saved.remaining);
+  }
   scheduleRefresh();
  });
 }
-root.addEventListener('vr-gesture-start',pause);
-root.addEventListener('vr-gesture-end',resume);
-document.addEventListener('visibilitychange',visibility,{passive:true});
+root.addEventListener('vr-gesture-start',()=>{});
+root.addEventListener('vr-gesture-end',()=>{});
+document.addEventListener('visibilitychange',onVisibility,{passive:true});
 window.VegasLayer5ShowSymbol=selectSymbol;
 window.VegasLayer5SetAutoQueue=setQueue;
 const pendingQueue=window.__VEGAS_PENDING_LAYER5_QUEUE;
-if(Array.isArray(pendingQueue)){delete window.__VEGAS_PENDING_LAYER5_QUEUE;setQueue(pendingQueue);}
-else setQueue(window.VegasFormalSignalSymbols||[]);
-if(window.__VEGAS_PENDING_LAYER5_SYMBOL){const pending=window.__VEGAS_PENDING_LAYER5_SYMBOL;delete window.__VEGAS_PENDING_LAYER5_SYMBOL;selectSymbol(pending);}
+if(Array.isArray(pendingQueue)){
+ delete window.__VEGAS_PENDING_LAYER5_QUEUE;
+ setQueue(pendingQueue);
+}else{
+ setQueue(window.VegasFormalSignalSymbols||[]);
+}
+if(window.__VEGAS_PENDING_LAYER5_SYMBOL){
+ const pending=window.__VEGAS_PENDING_LAYER5_SYMBOL;
+ delete window.__VEGAS_PENDING_LAYER5_SYMBOL;
+ selectSymbol(pending);
+}
 })();
