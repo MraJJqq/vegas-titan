@@ -181,7 +181,7 @@ function applyDeferredRefresh(){
   view.pendingPeriod=null;
   chart.setData(index,rows,symbol,timeframe);
   view.rows=rows;
-  view.symbol=symbol;
+  view.symbol=canonicalSymbol(symbol);
   view.period=timeframe;
   view.hasData=true;
   view.dataAt=Date.now();
@@ -337,7 +337,7 @@ function restoreAuto(){
  });
 }
 function selectSymbol(value){
- const symbol=String(value||'').trim().toUpperCase();
+ const symbol=canonicalSymbol(value);
  if(!/^[A-Z0-9.]+$/.test(symbol))return false;
  const now=Date.now();
  if(!manualSymbol)autoSnapshot=captureAutoProgress();
@@ -413,7 +413,7 @@ function hide(){
  }
 }
 function setQueue(values){
- const next=[...new Set((values||[]).map(x=>String(x||'').trim().toUpperCase()).filter(x=>/^[A-Z0-9.]+$/.test(x)))];
+ const next=[...new Set((values||[]).map(canonicalSymbol).filter(x=>/^[A-Z0-9.]+$/.test(x)))];
  if(next.length===queue.length&&next.every((symbol,index)=>symbol===queue[index]))return;
  const previous=currentAutoSymbol();
  queue=next;
