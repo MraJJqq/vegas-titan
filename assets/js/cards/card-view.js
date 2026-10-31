@@ -65,6 +65,7 @@ function mount(root,instruments,onSelect){
   const card=cardFrom(event.target);
   mousePress=card?{card,id:event.pointerId,x:event.clientX,y:event.clientY}:null;
  }
+ function onPointerCancel(){mousePress=null;}
  function onMouseUp(event){
   if(event.pointerType!=='mouse'||!mousePress||event.pointerId!==mousePress.id)return;
   const press=mousePress;mousePress=null;
@@ -77,7 +78,7 @@ function mount(root,instruments,onSelect){
  }
  root.addEventListener('pointerdown',onMouseDown,true);
  root.addEventListener('pointerup',onMouseUp,true);
- root.addEventListener('pointercancel',()=>{mousePress=null;},true);
+ root.addEventListener('pointercancel',onPointerCancel,true);
  root.addEventListener('click',onClick,true);
  let pointerRaf=0,pointerEvent=null;
  function onPointerMove(event){
@@ -129,7 +130,7 @@ function mount(root,instruments,onSelect){
  function destroy(){
   resizeObserver?.disconnect();root.removeEventListener('mc-slot-visibility',onSlotVisibility);
   root.removeEventListener('click',onClick,true);
-  root.removeEventListener('pointerdown',onMouseDown,true);root.removeEventListener('pointerup',onMouseUp,true);
+  root.removeEventListener('pointerdown',onMouseDown,true);root.removeEventListener('pointerup',onMouseUp,true);root.removeEventListener('pointercancel',onPointerCancel,true);
   root.removeEventListener('pointermove',onPointerMove);root.removeEventListener('pointerout',resetTilt);
   ['pointerleave','pointerup','pointercancel'].forEach(type=>root.removeEventListener(type,resetTilt));
   if(pointerRaf)cancelAnimationFrame(pointerRaf);
