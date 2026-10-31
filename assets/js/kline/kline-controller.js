@@ -11,7 +11,6 @@ const layers=[0,1].map(index=>{
 });
 const CLEAR_MS=5000,TRANSITION_MS=5000,REVEAL_MS=1000,INITIAL_HOLD_MS=4000,REFRESH_MS=15000,MANUAL_HOLD_MS=5000;
 let queue=[],currentIndex=0,manualSymbol='',active=0,state='hidden',timer=0,refreshTimer=0,token=0,initialShown=false,refreshPending=false;
-const activePointers=new Set();
 let chart=null,views=[];
 function ensureChart(){
  if(!chart){chart=window.VegasKlineChart.create(root,layers,LWC,()=>active);views=chart.views;}
@@ -31,19 +30,19 @@ function setLayerStyles(index,transition=false){
 function showRoot(){
  ensureChart();root.hidden=false;requestAnimationFrame(()=>chart?.resize());
 }
-function updateHeader(symbol,rows){
+function updateHeader(symbol,rows,historyComplete=false){
  title.textContent=symbol;
  if(rows?.length){
   status.textContent=rows.at(-1).close.toLocaleString('en-US',{maximumFractionDigits:5})+' · '+rows.length+'根K线';
-  error.hidden=rows.length>=676;
-  if(rows.length<676)error.textContent='历史K线不足676根，EMA576/EMA676红峰无法完整显示（当前'+rows.length+'根）';
+  const target=data.warmupBars||4000;
+  error.hidden=rows.length>=target;
+  if(rows.length<target)error.textContent=historyComplete?'Bitget可获取历史仅'+rows.length+'根，未达到红峰预热目标'+target+'根':'红峰历史预热中：'+rows.length+'/'+target+'根';
  }else status.textContent='正在加载行情…';
 }
 async function loadLayer(index,symbol){
  const timeframe='4H';
  if(!symbol)return false;
  const view=views[index],requestId=(view.requestId||0)+1;view.requestId=requestId;
- const changed=view.symbol!==symbol||view.period!==timeframe;
  try{
   const first=await data.load(symbol,timeframe);
   if(view.requestId!==requestId)return false;
@@ -51,11 +50,11 @@ async function loadLayer(index,symbol){
    // Do not replace candle data while a pointer gesture is in progress.
    view.pendingRows=first;view.pendingSymbol=symbol;view.pendingPeriod=timeframe;
   }else{
-   chart.setData(index,first,symbol,timeframe,!changed);
+   chart.setData(index,first,symbol,timeframe);
    view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
   }
-  if(index===active&&symbol===current())updateHeader(symbol,first);
-  if(first.length<1200){
+  if(index===active&&symbol===current())updateHeader(symbol,first,first.length>=(data.warmupBars||4000));
+  if(first.length<(data.warmupBars||4000)){
    data.complete(symbol,timeframe,first).then(rows=>{
     if(view.requestId!==requestId)return;
     const targetSymbol=view.pendingSymbol||view.symbol,targetPeriod=view.pendingPeriod||view.period;
@@ -63,9 +62,9 @@ async function loadLayer(index,symbol){
     if(state==='transitioning'||state==='paused'||state==='preparing'){
      view.pendingRows=rows;view.pendingSymbol=symbol;view.pendingPeriod=timeframe;return;
     }
-    chart.setData(index,rows,symbol,timeframe,true);
+    chart.setData(index,rows,symbol,timeframe);
     view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
-    if(index===active&&symbol===current())updateHeader(symbol,rows);
+    if(index===active&&symbol===current())updateHeader(symbol,rows,true);
    }).catch(exception=>{
     if(index===active&&symbol===current()){error.textContent='历史数据补齐失败 · '+String(exception.message||exception).slice(0,42);error.hidden=false;}
    });
@@ -95,7 +94,7 @@ function scheduleRefresh(delay=REFRESH_MS){
 }
 function applyDeferredRefresh(){
  if(state==='paused'||state==='preparing'||state==='transitioning')return;
- views.forEach((view,index)=>{if(view.pendingRows){const rows=view.pendingRows,symbol=view.pendingSymbol||view.symbol,timeframe=view.pendingPeriod||view.period;view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;chart.setData(index,rows,symbol,timeframe,true);view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();if(index===active&&symbol===current())updateHeader(symbol,rows);}});
+ views.forEach((view,index)=>{if(view.pendingRows){const rows=view.pendingRows,symbol=view.pendingSymbol||view.symbol,timeframe=view.pendingPeriod||view.period;view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;chart.setData(index,rows,symbol,timeframe);view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();if(index===active&&symbol===current())updateHeader(symbol,rows);}});
  if(refreshPending){refreshPending=false;scheduleRefresh(0);}
 }
 function scheduleCycle(delay=CLEAR_MS){
@@ -141,11 +140,28 @@ function beginReveal(){
 function selectSymbol(value){
  const symbol=String(value||'').trim().toUpperCase();
  if(!/^[A-Z0-9.]+$/.test(symbol))return false;
- manualSymbol=symbol;++token;clearTimer();clearRefresh();state='manual';
- showRoot();setLayerStyles(active,false);title.textContent=symbol;error.hidden=true;
- loadLayer(active,symbol).then(loaded=>{
-  if(!loaded||manualSymbol!==symbol||document.hidden||state==='paused')return;
-  updateHeader(symbol,views[active].rows);armManualReturn(symbol);
+ manualSymbol=symbol;++token;const id=token;clearTimer();clearRefresh();state='manual';
+ showRoot();title.textContent=symbol;error.hidden=true;
+ const nextLayer=1-active,oldLayer=active;
+ loadLayer(nextLayer,symbol).then(loaded=>{
+  if(!loaded||id!==token||manualSymbol!==symbol||document.hidden||state==='paused')return;
+  updateHeader(symbol,views[nextLayer].rows);
+  // Reveal the newly loaded chart over the full 10-second visual cycle.
+  // Prime the incoming layer in its dark state before starting the transition.
+  layers[nextLayer].style.transition='none';
+  layers[nextLayer].style.opacity='0';
+  layers[nextLayer].style.filter='brightness(.25)';
+  layers[nextLayer].style.willChange='opacity,filter';
+  layers[oldLayer].style.willChange='opacity,filter';
+  layers[nextLayer].getBoundingClientRect();
+  layers.forEach(layer=>{layer.style.transition='opacity 10000ms ease-in-out,filter 10000ms ease-in-out';});
+  layers[oldLayer].style.pointerEvents='none';
+  layers[oldLayer].style.opacity='0';layers[oldLayer].style.filter='brightness(.25)';
+  layers[nextLayer].style.opacity='1';layers[nextLayer].style.filter='brightness(1)';
+  layers[nextLayer].classList.add('is-active');layers[oldLayer].classList.remove('is-active');
+  layers[nextLayer].style.pointerEvents='auto';active=nextLayer;
+  setTimeout(()=>layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';}),10050);
+  armManualReturn(symbol);
  });
  scheduleRefresh();return true;
 }
@@ -159,24 +175,18 @@ function armManualReturn(symbol){
  },MANUAL_HOLD_MS);
 }
 function pause(event){
- // Only chart gestures pause the rotation/data pipeline.
- if(!event?.target?.closest?.('.vr-gesture-layer'))return;
- if(event.pointerId!==undefined)activePointers.add(event.pointerId);
- if(state==='paused'||state==='hidden')return;
+ if(!event||event.type!=='vr-gesture-start'||state==='paused'||state==='hidden')return;
  ++token;clearTimer();
  const frozen=layers.map(layer=>({opacity:getComputedStyle(layer).opacity,filter:getComputedStyle(layer).filter}));
  layers.forEach((layer,i)=>{layer.style.transition='none';layer.style.opacity=frozen[i].opacity;layer.style.filter=frozen[i].filter;});
  state='paused';
 }
 function resume(event){
- if(event?.pointerId!==undefined)activePointers.delete(event.pointerId);
- if(activePointers.size||state!=='paused')return;
+ if(!event||event.type!=='vr-gesture-end'||state!=='paused')return;
  setLayerStyles(active,false);
  layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
  state=manualSymbol?'manual':'idle';
- // Let the chart's pointerup handler commit the final viewport before data replacement.
- setTimeout(()=>{if(!activePointers.size)applyDeferredRefresh();},80);
- if(manualSymbol)armManualReturn(manualSymbol);else scheduleCycle(CLEAR_MS);
+ requestAnimationFrame(()=>{if(state==='paused'||document.hidden)return;applyDeferredRefresh();if(manualSymbol)armManualReturn(manualSymbol);else scheduleCycle(CLEAR_MS);});
 }
 function hide(){
  ++token;clearTimer();clearRefresh();state='hidden';root.hidden=true;
@@ -200,7 +210,7 @@ function setQueue(values){
  });
 }
 function visibility(){
- if(document.hidden){++token;clearTimer();clearRefresh();activePointers.clear();views.forEach(view=>{view.requestId=(view.requestId||0)+1;});state='hidden';return;}
+ if(document.hidden){++token;clearTimer();clearRefresh();views.forEach(view=>{view.requestId=(view.requestId||0)+1;});state='hidden';return;}
  const symbol=current();if(!symbol)return;
  setLayerStyles(active,false);showRoot();loadLayer(active,symbol).then(ok=>{
   if(!ok)return;
@@ -211,11 +221,8 @@ function visibility(){
   scheduleRefresh();
  });
 }
-root.addEventListener('pointerdown',pause,{capture:true,passive:true});
-window.addEventListener('pointerup',resume,{capture:true,passive:true});
-window.addEventListener('pointercancel',resume,{capture:true,passive:true});
-window.addEventListener('lostpointercapture',resume,{capture:true,passive:true});
-window.addEventListener('blur',()=>{if(activePointers.size){activePointers.clear();resume();}},{passive:true});
+root.addEventListener('vr-gesture-start',pause);
+root.addEventListener('vr-gesture-end',resume);
 document.addEventListener('visibilitychange',visibility,{passive:true});
 window.VegasLayer5ShowSymbol=selectSymbol;
 window.VegasLayer5SetAutoQueue=setQueue;
