@@ -13,11 +13,7 @@ function create(root,layers,LWC,getActive){
   if(saved&&Number.isFinite(saved.visibleBars))viewport.visibleBars=clamp(saved.visibleBars,2,5000);
   if(saved&&Number.isFinite(saved.rightGap))viewport.rightGap=clamp(saved.rightGap,-5000,50000);
   else if(saved&&Number.isFinite(saved.rightEdgeOffset))viewport.rightGap=clamp(saved.rightEdgeOffset,-5000,50000);
-  else{
-   const legacy=JSON.parse(localStorage.getItem('vegas-layer5-viewport-v3')||'null');
-   if(legacy&&Number.isFinite(legacy.visibleBars))viewport.visibleBars=clamp(legacy.visibleBars,2,5000);
-   if(legacy&&Number.isFinite(legacy.rightEdgeOffset))viewport.rightGap=clamp(legacy.rightEdgeOffset,-5000,50000);
-  }
+
  }catch{}
  let resizeFrame=0,gestureFrame=0,wheelEndTimer=0;
  let activeGesture=null,wheelGesture=false,wheelTarget=null,destroyed=false;
