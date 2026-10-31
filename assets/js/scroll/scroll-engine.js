@@ -121,6 +121,9 @@ function mount(root,slots){
  }
  function onTouchEnd(){endTouch(false);}
  function onTouchCancel(){endTouch(true);}
+ function resetTouch(){if(state.touching)endTouch(true);else{state.mode='auto';state.wheelSpeed=state.touchSpeed=0;state.autoDelayUntil=performance.now()+250;requestFrame();}}
+ function onPageHide(){resetTouch();cancelFrame();}
+ function onWindowBlur(){resetTouch();}
  function endTouch(cancelled){
   if(!state.touching)return;
   state.touching=false;state.dragging=false;
@@ -148,8 +151,11 @@ function mount(root,slots){
  root.addEventListener('scroll',onScroll,{passive:true});
  root.addEventListener('touchstart',onTouchStart,{passive:true});
  root.addEventListener('touchmove',onTouchMove,{passive:false});
- root.addEventListener('touchend',onTouchEnd,{passive:true});
- root.addEventListener('touchcancel',onTouchCancel,{passive:true});
+ // Touch completion is captured at window level: iPad may release outside the scroll container.
+ window.addEventListener('touchend',onTouchEnd,{capture:true,passive:true});
+ window.addEventListener('touchcancel',onTouchCancel,{capture:true,passive:true});
+ window.addEventListener('blur',onWindowBlur,{passive:true});
+ window.addEventListener('pagehide',onPageHide,{passive:true});
  document.addEventListener('visibilitychange',onVisibility,{passive:true});
  window.addEventListener('resize',onResize,{passive:true});
  const observer='ResizeObserver'in window?new ResizeObserver(onResize):null;
@@ -165,7 +171,9 @@ function mount(root,slots){
  return{refresh:onResize,destroy(){
   cancelFrame();observer?.disconnect();intersection?.disconnect();
   root.removeEventListener('wheel',onWheel);root.removeEventListener('scroll',onScroll);
-  root.removeEventListener('touchstart',onTouchStart);root.removeEventListener('touchmove',onTouchMove);root.removeEventListener('touchend',onTouchEnd);root.removeEventListener('touchcancel',onTouchCancel);
+  root.removeEventListener('touchstart',onTouchStart);root.removeEventListener('touchmove',onTouchMove);
+  window.removeEventListener('touchend',onTouchEnd,true);window.removeEventListener('touchcancel',onTouchCancel,true);
+  window.removeEventListener('blur',onWindowBlur);window.removeEventListener('pagehide',onPageHide);
   document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('resize',onResize);
  }};
 }
