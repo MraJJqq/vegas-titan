@@ -60,6 +60,7 @@ function clearAutoTimer(){
  if(autoTimer){clearTimeout(autoTimer);autoTimer=0;}
  autoTimerCallback=null;
  autoTimerDueAt=0;
+ pausedAutoTimer=null;
 }
 function armAutoTimer(callback,delay){
  clearAutoTimer();
@@ -480,6 +481,7 @@ function onVisibility(){
   }
   if(manualSymbol)manualDeadline=Date.now()+Math.max(0,manualDeadline-Date.now());
   ++generation;
+  gesturePaused=false;
   clearAutoTimer();
   clearManualTimer();
   clearRefreshTimer();
