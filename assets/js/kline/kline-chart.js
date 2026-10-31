@@ -69,7 +69,9 @@ function create(root,layers,LWC,getActive){
  }));
  function setData(index,rows,symbol,period,preserve=false){
   const view=views[index];if(!view)return;
-  if(preserve&&index===getActive())capture(view);
+  // Always capture the active chart before replacing its data, including symbol/period changes.
+  // The single shared viewport is then reapplied to every symbol and timeframe.
+  if(index===getActive()&&view.rows.length)capture(view);
   view.candle.setData(rows);
   view.lines.forEach((series,i)=>series.setData(window.VegasKlineData.ema(rows,EMA[i])));
   view.rows=rows;view.symbol=symbol;view.period=period;
