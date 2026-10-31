@@ -41,7 +41,7 @@ const klinePos=html.indexOf('id="vegas-right-scroll"');
 const scrollPos=html.indexOf('id="market-cards-layer"');
 const tickerPos=html.indexOf('id="vegas-signal-ticker"');
 if(!(klinePos>=0&&scrollPos>klinePos&&tickerPos>scrollPos))fail('DOM layer order must be K-line, scroll container/cards, then ticker');
-if(!html.includes('app.css?v=layer-hit-test-rebuild-1')||!html.includes('right-signal-scroll.css?v=layer-hit-test-rebuild-1'))fail('Layer hit-test cache version missing');
+if(!html.includes('app.css?v=card-glass-backdrop-fix-1')||!html.includes('right-signal-scroll.css?v=layer-hit-test-rebuild-1'))fail('Card glass backdrop or layer hit-test cache version missing');
 for(const p of ['assets/js/signals/v9-events.js','assets/js/core/market-universe.js','assets/js/core/market-data.js','assets/js/cards/card-view.js','assets/js/scroll/scroll-engine.js','assets/js/cards/card-system.js','assets/js/kline/kline-data.js'])if(!html.includes(p))fail('Entry point missing '+p);
 if(!html.includes("chart.src='./assets/js/kline/kline-chart.js")||!html.includes("app.src='./assets/js/kline/kline-controller.js"))fail('Dynamic K-line loader missing');
 const signalReader=read('assets/js/signals/v9-events.js');
