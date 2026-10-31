@@ -42,7 +42,6 @@ async function loadLayer(index,symbol){
  const timeframe='4H';
  if(!symbol)return false;
  const view=views[index],requestId=(view.requestId||0)+1;view.requestId=requestId;
- const changed=view.symbol!==symbol||view.period!==timeframe;
  try{
   const first=await data.load(symbol,timeframe);
   if(view.requestId!==requestId)return false;
@@ -50,7 +49,7 @@ async function loadLayer(index,symbol){
    // Do not replace candle data while a pointer gesture is in progress.
    view.pendingRows=first;view.pendingSymbol=symbol;view.pendingPeriod=timeframe;
   }else{
-   chart.setData(index,first,symbol,timeframe,!changed);
+   chart.setData(index,first,symbol,timeframe);
    view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
   }
   if(index===active&&symbol===current())updateHeader(symbol,first);
@@ -62,7 +61,7 @@ async function loadLayer(index,symbol){
     if(state==='transitioning'||state==='paused'||state==='preparing'){
      view.pendingRows=rows;view.pendingSymbol=symbol;view.pendingPeriod=timeframe;return;
     }
-    chart.setData(index,rows,symbol,timeframe,true);
+    chart.setData(index,rows,symbol,timeframe);
     view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
     if(index===active&&symbol===current())updateHeader(symbol,rows);
    }).catch(exception=>{
@@ -94,7 +93,7 @@ function scheduleRefresh(delay=REFRESH_MS){
 }
 function applyDeferredRefresh(){
  if(state==='paused'||state==='preparing'||state==='transitioning')return;
- views.forEach((view,index)=>{if(view.pendingRows){const rows=view.pendingRows,symbol=view.pendingSymbol||view.symbol,timeframe=view.pendingPeriod||view.period;view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;chart.setData(index,rows,symbol,timeframe,true);view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();if(index===active&&symbol===current())updateHeader(symbol,rows);}});
+ views.forEach((view,index)=>{if(view.pendingRows){const rows=view.pendingRows,symbol=view.pendingSymbol||view.symbol,timeframe=view.pendingPeriod||view.period;view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;chart.setData(index,rows,symbol,timeframe);view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();if(index===active&&symbol===current())updateHeader(symbol,rows);}});
  if(refreshPending){refreshPending=false;scheduleRefresh(0);}
 }
 function scheduleCycle(delay=CLEAR_MS){
