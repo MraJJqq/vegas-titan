@@ -82,7 +82,7 @@ async function activate(index,symbol){
  active=index;title.textContent=symbol;
  layers.forEach((layer,i)=>{layer.classList.toggle('is-active',i===index);layer.style.pointerEvents=i===index?'auto':'none';});
  const view=views[index];
- if(view.symbol===symbol&&view.period===period&&view.hasData){updateHeader(symbol,view.rows);return true;}
+ if(view.symbol===symbol&&view.period==='4H'&&view.hasData){updateHeader(symbol,view.rows);return true;}
  return loadLayer(index,symbol);
 }
 function scheduleRefresh(delay=REFRESH_MS){
@@ -159,7 +159,7 @@ function armManualReturn(symbol){
  },MANUAL_HOLD_MS);
 }
 function pause(event){
- // Only chart gestures pause the rotation/data pipeline; period buttons and headers do not.
+ // Only chart gestures pause the rotation/data pipeline.
  if(!event?.target?.closest?.('.vr-gesture-layer'))return;
  if(event.pointerId!==undefined)activePointers.add(event.pointerId);
  if(state==='paused'||state==='hidden')return;
