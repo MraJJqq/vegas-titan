@@ -411,9 +411,7 @@ function hide(){
  });
  if(chart){
   chart.capture(views[active]);
-  chart.destroy();
-  chart=null;
-  views=[];
+  chart.destroy();chart=null;views=[];
  }
 }
 function setQueue(values){
