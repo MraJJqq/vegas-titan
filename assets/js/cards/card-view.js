@@ -110,15 +110,18 @@ function mount(root,instruments,onSelect){
    const candlesChanged=!!data.candles&&data.candles!==item.candles;
    if(candlesChanged)item.candles=data.candles;
    if(item.price>0&&item.open>0){
-    const up=item.price>=item.open,n=price(item.price),pct=(up?'+':'')+((item.price/item.open-1)*100).toFixed(2)+'%';
-    const direction=up?'up':'dn';
+    const up=item.price>=item.open,direction=up?'up':'dn';
     if(item.lastDirection!==direction){
      item.nodes.card.classList.toggle('up',up);item.nodes.card.classList.toggle('dn',!up);
      item.nodes.card.style.setProperty('--mc-color',up?'#00f5a0':'#ff3b6b');
      item.lastDirection=direction;
     }
-    if(item.nodes.price.textContent!==n)item.nodes.price.textContent=n;
-    if(item.nodes.change.textContent!==pct)item.nodes.change.textContent=pct;
+    if(item.lastPriceValue!==item.price||item.lastOpenValue!==item.open){
+     const n=price(item.price),pct=(up?'+':'')+((item.price/item.open-1)*100).toFixed(2)+'%';
+     if(item.nodes.price.textContent!==n)item.nodes.price.textContent=n;
+     if(item.nodes.change.textContent!==pct)item.nodes.change.textContent=pct;
+     item.lastPriceValue=item.price;item.lastOpenValue=item.open;
+    }
    }
    if(candlesChanged&&item.candles.length&&isVisible(item))draw(item);
   });
@@ -127,6 +130,8 @@ function mount(root,instruments,onSelect){
   const set=new Set(symbols);
   items.forEach(item=>{
    const active=set.has(item.symbol);
+   if(item.formalSignal===active)return;
+   item.formalSignal=active;
    if(active)item.nodes.card.setAttribute('data-formal-signal','true');
    else item.nodes.card.removeAttribute('data-formal-signal');
   });
