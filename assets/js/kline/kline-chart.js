@@ -68,11 +68,23 @@ function create(root,layers,LWC,getActive){
  }
  function setData(index,rows,symbol,period){
   const view=views[index];if(!view||!Array.isArray(rows)||!rows.length)return;
-  view.candle.setData(rows);
-  view.lines.forEach((series,i)=>series.setData(window.VegasKlineData.ema(rows,EMA[i])));
+  const sameSymbol=view.symbol===symbol&&view.period==='4H'&&view.rows.length>0;
+  const old=view.rows,emaRows=EMA.map(length=>window.VegasKlineData.ema(rows,length,symbol));
+  let common=0;
+  if(sameSymbol){
+   const limit=Math.min(old.length,rows.length);
+   while(common<limit&&old[common].time===rows[common].time&&old[common].open===rows[common].open&&old[common].high===rows[common].high&&old[common].low===rows[common].low&&old[common].close===rows[common].close)common++;
+   if(common===old.length&&common===rows.length)return;
+  }
+  const incremental=sameSymbol&&((common===old.length&&rows.length===old.length+1)||(common===rows.length-1&&rows.length===old.length&&rows[rows.length-1].time===old[old.length-1].time));
+  if(incremental){
+   view.candle.update(rows[rows.length-1]);
+   view.lines.forEach((series,i)=>{const last=emaRows[i][emaRows[i].length-1];if(last){if(view.rows.length<EMA[i])series.setData(emaRows[i]);else series.update(last);}});
+  }else{
+   view.candle.setData(rows);view.lines.forEach((series,i)=>series.setData(emaRows[i]));
+  }
   view.rows=rows;view.symbol=symbol;view.period='4H';
-  view.chart.applyOptions({rightPriceScale:{autoScale:true,scaleMargins:{top:.10,bottom:.10}}});
-  apply(view);
+  view.chart.applyOptions({rightPriceScale:{autoScale:true,scaleMargins:{top:.10,bottom:.10}}});apply(view);
  }
  function sync(from,to){
   const source=views[from],target=views[to];
