@@ -41,7 +41,7 @@ function create(root,layers,LWC,getActive){
   return{layer,host,gesture,chart,candle,lines,rows:[],symbol:'',period:'4H',applying:false,applyId:0};
  });
  function activeView(){return views[getActive()];}
- function capture(view){
+ function capture(view,syncPeers=false){
   if(!view?.rows.length)return;
   const scale=view.chart.timeScale(),range=scale.getVisibleLogicalRange();
   if(!range||!Number.isFinite(range.from)||!Number.isFinite(range.to)||range.to<=range.from)return;
@@ -51,6 +51,12 @@ function create(root,layers,LWC,getActive){
   viewport.rightOffset=Number.isFinite(options.rightOffset)?options.rightOffset:viewport.rightOffset;
   viewport.rightEdgeOffset=view.rows.length-1-range.to;
   viewport.period=view.period;scheduleSave();
+  // A viewport adjustment is global: mirror it immediately to every loaded symbol view.
+  if(syncPeers){
+   views.forEach(peer=>{
+    if(peer!==view&&peer.rows.length)apply(peer,peer.rows,peer.period,false);
+   });
+  }
  }
  function apply(view,rows,period,commit=true){
   if(!rows?.length)return;
@@ -65,7 +71,7 @@ function create(root,layers,LWC,getActive){
   if(commit){viewport.visibleBars=visible;viewport.rightEdgeOffset=edge;viewport.period=period;scheduleSave();}
  }
  views.forEach((view,index)=>view.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{
-  if(index===getActive()&&!view.applying)capture(view);
+  if(index===getActive()&&!view.applying)capture(view,true);
  }));
  function setData(index,rows,symbol,period,preserve=false){
   const view=views[index];if(!view)return;
