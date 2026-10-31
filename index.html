@@ -22,7 +22,7 @@
 </section>
 <section id="vegas-right-scroll" aria-label="正式信号K线渐变轮播区域" hidden>
  <div class="vr-single">
-  <header class="vr-head"><nav class="vr-periods" aria-label="K线周期"></nav><strong class="vr-symbol"></strong><span class="vr-status">等待正式信号…</span></header>
+  <header class="vr-head" aria-label="当前品种与固定周期"><span class="vr-timeframe">4H</span><strong class="vr-symbol"></strong><span class="vr-status">等待正式信号…</span></header>
   <div class="vr-error" hidden></div>
  </div>
 </section>
@@ -43,7 +43,7 @@
  function loadSource(index){
   if(index>=sources.length){console.error('[Vegas Right Scroll] chart library failed to load');return;}
   const script=document.createElement('script');script.src=sources[index];
-  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=viewport-sync-5';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=viewport-data-guard-5';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
+  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=fixed-4h-1';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=fixed-4h-1';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
   script.onerror=function(){script.remove();loadSource(index+1);};document.head.appendChild(script);
  }
  loadSource(0);
