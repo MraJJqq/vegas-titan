@@ -19,7 +19,7 @@ function create(root,layers,LWC,getActive){
   }
  }catch{}
  let saveTimer=0,resizeFrame=0,gestureFrame=0,wheelEndTimer=0;
- let activeGesture=null,wheelGesture=false,destroyed=false;
+ let activeGesture=null,wheelGesture=false,wheelTarget=null,destroyed=false;
  const views=layers.map(layer=>{
   const host=document.createElement('div');host.className='vr-chart';layer.append(host);
   const gesture=document.createElement('div');gesture.className='vr-gesture-layer';gesture.setAttribute('aria-label','K线视窗手势控制');layer.append(gesture);
@@ -103,10 +103,10 @@ function create(root,layers,LWC,getActive){
  }
  function end(kind){
   if(!activeGesture&&!wheelGesture)return;
-  const view=activeGesture?.view||activeView();
-  activeGesture=null;wheelGesture=false;
-  if(gestureFrame){cancelAnimationFrame(gestureFrame);gestureFrame=0;}
-  pendingPoints.clear();
+  const view=activeGesture?.view||wheelTarget?.view||activeView();
+  if(gestureFrame){cancelAnimationFrame(gestureFrame);gestureFrame=0;processGestureFrame();}
+  if(wheelTarget){applyRange(wheelTarget.view,wheelTarget.from,wheelTarget.to);wheelTarget=null;}
+  activeGesture=null;wheelGesture=false;pendingPoints.clear();
   commit(view);
   emit('vr-gesture-end',kind);
  }
@@ -131,24 +131,26 @@ function create(root,layers,LWC,getActive){
    activeGesture={kind:'pinch',view,base:r,startDistance:Math.max(1,Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)),startCenter:(p[0].x+p[1].x)/2};
   }
  }
+ function processGestureFrame(){
+  gestureFrame=0;
+  const g=activeGesture;
+  pendingPoints.forEach((p,id)=>pointers.set(id,p));pendingPoints.clear();
+  if(g&&g.kind==='drag'&&pointers.size===1){
+   const p=[...pointers.values()][0],shift=(g.startX-p.x)/Math.max(.01,g.pixelsPerBar);
+   applyRange(g.view,g.base.from+shift,g.base.to+shift);
+  }else if(g&&g.kind==='pinch'&&pointers.size>=2){
+   const p=[...pointers.values()].slice(0,2),distance=Math.max(1,Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y));
+   const center=(p[0].x+p[1].x)/2,rect=g.view.gesture.getBoundingClientRect();
+   const width=clamp(g.base.width*g.startDistance/distance,2,5000);
+   const shift=(g.startCenter-center)/Math.max(1,rect.width)*g.base.width;
+   const mid=(g.base.from+g.base.to)/2+shift;
+   applyRange(g.view,mid-width/2,mid+width/2);
+  }
+  if(wheelTarget){applyRange(wheelTarget.view,wheelTarget.from,wheelTarget.to);wheelTarget=null;}
+ }
  function scheduleGestureFrame(){
   if(gestureFrame)return;
-  gestureFrame=requestAnimationFrame(()=>{
-   gestureFrame=0;
-   const g=activeGesture;if(!g)return;
-   pendingPoints.forEach((p,id)=>pointers.set(id,p));pendingPoints.clear();
-   if(g.kind==='drag'&&pointers.size===1){
-    const p=[...pointers.values()][0],shift=(g.startX-p.x)/Math.max(.01,g.pixelsPerBar);
-    applyRange(g.view,g.base.from+shift,g.base.to+shift);
-   }else if(g.kind==='pinch'&&pointers.size>=2){
-    const p=[...pointers.values()].slice(0,2),distance=Math.max(1,Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y));
-    const center=(p[0].x+p[1].x)/2,rect=g.view.gesture.getBoundingClientRect();
-    const width=clamp(g.base.width*g.startDistance/distance,2,5000);
-    const shift=(g.startCenter-center)/Math.max(1,rect.width)*g.base.width;
-    const mid=(g.base.from+g.base.to)/2+shift;
-    applyRange(g.view,mid-width/2,mid+width/2);
-   }
-  });
+  gestureFrame=requestAnimationFrame(processGestureFrame);
  }
  function onPointerMove(event){
   if(!pointers.has(event.pointerId)||!activeGesture)return;
@@ -156,6 +158,8 @@ function create(root,layers,LWC,getActive){
  }
  function onPointerEnd(event){
   if(!pointers.has(event.pointerId))return;
+  pendingPoints.set(event.pointerId,point(event));
+  if(gestureFrame){cancelAnimationFrame(gestureFrame);gestureFrame=0;processGestureFrame();}
   pointers.delete(event.pointerId);pendingPoints.delete(event.pointerId);
   if(pointers.size===1){
    const view=activeGesture?.view||activeView(),p=[...pointers.values()][0],r=currentRange(view),rect=view.gesture.getBoundingClientRect();
@@ -165,14 +169,17 @@ function create(root,layers,LWC,getActive){
  function onPointerCancel(){pointers.clear();pendingPoints.clear();end('pointer-cancel');}
  function onWheel(event){
   const view=views[getActive()];if(!view?.rows.length)return;
-  const r=currentRange(view);if(!r)return;
+  const r=wheelTarget?{from:wheelTarget.from,to:wheelTarget.to,width:wheelTarget.to-wheelTarget.from}:currentRange(view);
+  if(!r)return;
   event.preventDefault();
   if(!wheelGesture){wheelGesture=true;begin('wheel',view);}
   const rect=view.gesture.getBoundingClientRect(),anchor=clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
-  const factor=event.deltaY>0?1.10:.91,width=clamp(r.width*factor,2,5000);
-  const logicalAnchor=r.from+anchor*r.width,anchorRatio=anchor;
-  const from=logicalAnchor-anchorRatio*width;
-  applyRange(view,from,from+width);
+  const unit=event.deltaMode===1?16:event.deltaMode===2?rect.height:1;
+  const factor=Math.exp(clamp(event.deltaY*unit,-2400,2400)*.001);
+  const width=clamp(r.width*factor,2,5000),logicalAnchor=r.from+anchor*r.width;
+  const from=logicalAnchor-anchor*width;
+  wheelTarget={view,from,to:from+width};
+  scheduleGestureFrame();
   clearTimeout(wheelEndTimer);
   wheelEndTimer=setTimeout(()=>{wheelEndTimer=0;end('wheel');},160);
  }
