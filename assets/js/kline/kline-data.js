@@ -91,5 +91,5 @@ function ema(rows,length){
  for(let i=length;i<rows.length;i++){value=rows[i].close*factor+value*(1-factor);out.push({time:rows[i].time,value});}
  return out;
 }
-window.VegasKlineData={load:latest,complete:history,ema,periods:['1H','4H','1D'],emas:[12,36,43,144,169,576,676]};
+window.VegasKlineData={load:latest,complete:history,ema,periods:['4H'],emas:[12,36,43,144,169,576,676]};
 })();
