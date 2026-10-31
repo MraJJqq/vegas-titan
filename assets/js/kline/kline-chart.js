@@ -121,7 +121,7 @@ function create(root,layers,LWC,getActive){
  let viewportCommitFrame=0;
  function commitViewport(view){
   if(viewportCommitFrame)cancelAnimationFrame(viewportCommitFrame);
-  viewportCommitFrame=requestAnimationFrame(()=>{viewportCommitFrame=0;if(view===activeView())capture(view,true);});
+  viewportCommitFrame=requestAnimationFrame(()=>{viewportCommitFrame=0;if(view===activeView()){capture(view,true);save();}});
  }
  function applyRange(view,from,to){if(to>from)try{view.chart.timeScale().setVisibleLogicalRange({from,to})}catch{}}
  function down(event){
@@ -177,7 +177,7 @@ function create(root,layers,LWC,getActive){
  });
  function onPageHide(){cancelAllPointers();capture(activeView());save();}
  function onWindowBlur(){cancelAllPointers();}
- function onVisibilityChange(){if(document.hidden)cancelAllPointers();}
+ function onVisibilityChange(){if(document.hidden){cancelAllPointers();capture(activeView());save();}}
  window.addEventListener('pagehide',onPageHide,{passive:true});
  window.addEventListener('blur',onWindowBlur,{passive:true});
  document.addEventListener('visibilitychange',onVisibilityChange,{passive:true});
