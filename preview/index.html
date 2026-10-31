@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<base href="https://cdn.jsdelivr.net/gh/MraJJqq/vegas-titan@preview-kline-refactor-20261031/">
+<base href="https://cdn.jsdelivr.net/gh/MraJJqq/vegas-titan@card-depth-smooth-20261031/">
 <meta name="theme-color" content="#02040a">
 <title>VEGAS TITAN</title>
-<link rel="stylesheet" href="./assets/css/app.css?v=v1-core-1">
+<link rel="stylesheet" href="./assets/css/app.css?v=card-depth-smooth-1">
 <link rel="stylesheet" href="./assets/css/right-signal-scroll.css?v=fixed-4h-1">
 <link rel="stylesheet" href="./assets/css/bottom-signal-ticker.css?v=v1-core-1">
 </head>
@@ -32,10 +32,10 @@
 <script src="./assets/js/signals/v9-events.js?v=v1-core-1"></script>
 <script src="./assets/js/core/market-universe.js?v=v1-core-1"></script>
 <script src="./assets/js/core/market-data.js?v=v1-core-1"></script>
-<script src="./assets/js/cards/card-view.js?v=card-mouse-click-fix-1"></script>
-<script src="./assets/js/scroll/scroll-engine.js?v=scroll-resilience-1"></script>
+<script src="./assets/js/cards/card-view.js?v=mouse-first-click-fix-3"></script>
+<script src="./assets/js/scroll/scroll-engine.js?v=card-depth-smooth-1"></script>
 <script src="./assets/js/cards/card-system.js?v=v1-core-1"></script>
-<script src="./assets/js/kline/kline-data.js?v=fixed-4h-1"></script>
+<script src="./assets/js/kline/kline-data.js?v=redpeak-warmup-4000-1"></script>
 <script>
 (function(){
  const sources=[
@@ -45,7 +45,7 @@
  function loadSource(index){
   if(index>=sources.length){console.error('[Vegas Right Scroll] chart library failed to load');return;}
   const script=document.createElement('script');script.src=sources[index];
-  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=viewport-refactor-1';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=viewport-refactor-1';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
+  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=viewport-smooth-2';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=redpeak-warmup-4000-1';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
   script.onerror=function(){script.remove();loadSource(index+1);};document.head.appendChild(script);
  }
  loadSource(0);
