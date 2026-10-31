@@ -68,8 +68,9 @@ function mount(root,slots){
   }
  }
  function requestFrame(){
-  if(!alive||state.raf||state.timer||document.hidden||state.mode==='touch')return;
-  const schedule=()=>{state.timer=0;if(!alive||document.hidden)return;try{state.raf=requestAnimationFrame(frame);}catch(error){recover(error);}};
+  if(!alive||state.raf||document.hidden||state.mode==='touch')return;
+  if(state.timer){if(state.mode==='auto')return;clearTimeout(state.timer);state.timer=0;}
+  const schedule=()=>{state.timer=0;if(!alive||document.hidden||state.mode==='touch')return;try{state.raf=requestAnimationFrame(frame);}catch(error){recover(error);}};
   if(state.mode==='auto')state.timer=setTimeout(schedule,33);
   else schedule();
  }
