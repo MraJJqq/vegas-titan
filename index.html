@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#02040a">
 <title>VEGAS TITAN</title>
 <link rel="stylesheet" href="./assets/css/app.css?v=card-glass-backdrop-fix-1">
-<link rel="stylesheet" href="./assets/css/right-signal-scroll.css?v=opacity-fade-fix-1">
+<link rel="stylesheet" href="./assets/css/right-signal-scroll.css?v=floating-logo-upper-1">
 <link rel="stylesheet" href="./assets/css/bottom-signal-ticker.css?v=cleanup-runtime-1">
 </head>
 <body>
@@ -17,7 +17,7 @@
 </div>
 <section id="vegas-right-scroll" aria-label="正式信号K线渐变轮播区域" hidden>
  <div class="vr-single">
-  <header class="vr-head" aria-label="当前品种"><strong class="vr-symbol"></strong><span class="vr-name"></span></header>
+  <header class="vr-head" aria-label="当前品种"><img class="vr-logo" alt="" aria-hidden="true"><span class="vr-logo-fallback" hidden></span><strong class="vr-symbol"></strong></header>
   <div class="vr-error" hidden></div>
  </div>
 </section>
@@ -43,7 +43,7 @@
  function loadSource(index){
   if(index>=sources.length){console.error('[Vegas Right Scroll] chart library failed to load');return;}
   const script=document.createElement('script');script.src=sources[index];
-  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=chart-options-cache-2';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=opacity-fade-fix-1';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
+  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=chart-options-cache-2';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=floating-logo-upper-1';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
   script.onerror=function(){script.remove();loadSource(index+1);};document.head.appendChild(script);
  }
  loadSource(0);
