@@ -56,13 +56,18 @@ async function loadLayer(index,symbol,timeframe){
  try{
   const first=await data.load(symbol,timeframe);
   if(view.requestId!==requestId)return false;
-  chart.setData(index,first,symbol,timeframe,!changed);
-  view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
+  if(state==='paused'){
+   // Do not replace candle data while a pointer gesture is in progress.
+   view.pendingRows=first;view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
+  }else{
+   chart.setData(index,first,symbol,timeframe,!changed);
+   view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
+  }
   if(index===active&&symbol===current())updateHeader(symbol,first);
   if(first.length<1200){
    data.complete(symbol,timeframe,first).then(rows=>{
     if(view.requestId!==requestId||view.symbol!==symbol||view.period!==timeframe)return;
-    if(state==='transitioning'){view.pendingRows=rows;return;}
+    if(state==='transitioning'||state==='paused'||state==='preparing'){view.pendingRows=rows;return;}
     chart.setData(index,rows,symbol,timeframe,true);
     if(index===active&&symbol===current())updateHeader(symbol,rows);
    }).catch(exception=>{
@@ -93,6 +98,7 @@ function scheduleRefresh(delay=REFRESH_MS){
  },delay);
 }
 function applyDeferredRefresh(){
+ if(state==='paused'||state==='preparing'||state==='transitioning')return;
  views.forEach((view,index)=>{if(view.pendingRows){const rows=view.pendingRows;view.pendingRows=null;chart.setData(index,rows,view.symbol,view.period,true);if(index===active&&view.symbol===current())updateHeader(view.symbol,rows);}});
  if(refreshPending){refreshPending=false;scheduleRefresh(0);}
 }
@@ -183,7 +189,8 @@ function resume(event){
  setLayerStyles(active,false);
  layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
  state=manualSymbol?'manual':'idle';
- applyDeferredRefresh();
+ // Let the chart's pointerup handler commit the final viewport before data replacement.
+ setTimeout(()=>{if(!activePointers.size)applyDeferredRefresh();},80);
  if(manualSymbol)armManualReturn(manualSymbol);else scheduleCycle(CLEAR_MS);
 }
 function hide(){
