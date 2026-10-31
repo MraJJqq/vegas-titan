@@ -238,11 +238,11 @@ function beginTransition(symbol,duration,kind,id,onComplete){
    applyDeferredRefresh();
    if(typeof onComplete==='function')onComplete(true);
   };
-  if(duration<=0){
+  if(transitionDuration<=0){
    setLayerStyles(to,false,0);
    finish();
   }else{
-   armAutoTimer(finish,duration);
+   armAutoTimer(finish,transitionDuration);
   }
  });
 }
