@@ -11,7 +11,6 @@ const layers=[0,1].map(index=>{
 });
 const CLEAR_MS=5000,TRANSITION_MS=5000,REVEAL_MS=1000,INITIAL_HOLD_MS=4000,REFRESH_MS=15000,MANUAL_HOLD_MS=5000;
 let queue=[],currentIndex=0,manualSymbol='',active=0,state='hidden',timer=0,refreshTimer=0,token=0,initialShown=false,refreshPending=false;
-const activePointers=new Set();
 let chart=null,views=[];
 function ensureChart(){
  if(!chart){chart=window.VegasKlineChart.create(root,layers,LWC,()=>active);views=chart.views;}
@@ -159,24 +158,18 @@ function armManualReturn(symbol){
  },MANUAL_HOLD_MS);
 }
 function pause(event){
- // Only chart gestures pause the rotation/data pipeline.
- if(!event?.target?.closest?.('.vr-gesture-layer'))return;
- if(event.pointerId!==undefined)activePointers.add(event.pointerId);
- if(state==='paused'||state==='hidden')return;
+ if(!event||event.type!=='vr-gesture-start'||state==='paused'||state==='hidden')return;
  ++token;clearTimer();
  const frozen=layers.map(layer=>({opacity:getComputedStyle(layer).opacity,filter:getComputedStyle(layer).filter}));
  layers.forEach((layer,i)=>{layer.style.transition='none';layer.style.opacity=frozen[i].opacity;layer.style.filter=frozen[i].filter;});
  state='paused';
 }
 function resume(event){
- if(event?.pointerId!==undefined)activePointers.delete(event.pointerId);
- if(activePointers.size||state!=='paused')return;
+ if(!event||event.type!=='vr-gesture-end'||state!=='paused')return;
  setLayerStyles(active,false);
  layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';});
  state=manualSymbol?'manual':'idle';
- // Let the chart's pointerup handler commit the final viewport before data replacement.
- setTimeout(()=>{if(!activePointers.size)applyDeferredRefresh();},80);
- if(manualSymbol)armManualReturn(manualSymbol);else scheduleCycle(CLEAR_MS);
+ requestAnimationFrame(()=>{if(state==='paused'||document.hidden)return;applyDeferredRefresh();if(manualSymbol)armManualReturn(manualSymbol);else scheduleCycle(CLEAR_MS);});
 }
 function hide(){
  ++token;clearTimer();clearRefresh();state='hidden';root.hidden=true;
@@ -200,7 +193,7 @@ function setQueue(values){
  });
 }
 function visibility(){
- if(document.hidden){++token;clearTimer();clearRefresh();activePointers.clear();views.forEach(view=>{view.requestId=(view.requestId||0)+1;});state='hidden';return;}
+ if(document.hidden){++token;clearTimer();clearRefresh();views.forEach(view=>{view.requestId=(view.requestId||0)+1;});state='hidden';return;}
  const symbol=current();if(!symbol)return;
  setLayerStyles(active,false);showRoot();loadLayer(active,symbol).then(ok=>{
   if(!ok)return;
@@ -211,11 +204,8 @@ function visibility(){
   scheduleRefresh();
  });
 }
-root.addEventListener('pointerdown',pause,{capture:true,passive:true});
-window.addEventListener('pointerup',resume,{capture:true,passive:true});
-window.addEventListener('pointercancel',resume,{capture:true,passive:true});
-window.addEventListener('lostpointercapture',resume,{capture:true,passive:true});
-window.addEventListener('blur',()=>{if(activePointers.size){activePointers.clear();resume();}},{passive:true});
+root.addEventListener('vr-gesture-start',pause);
+root.addEventListener('vr-gesture-end',resume);
 document.addEventListener('visibilitychange',visibility,{passive:true});
 window.VegasLayer5ShowSymbol=selectSymbol;
 window.VegasLayer5SetAutoQueue=setQueue;
