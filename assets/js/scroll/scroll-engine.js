@@ -61,7 +61,7 @@ function mount(root,slots){
    const ratio=Math.min(1,visible/Math.max(1,boxHeight)),distance=Math.abs(boxTop+boxHeight/2-center);
    const t=clamp(distance/range,0,1),e=t*t*(3-2*t),ft=clamp(distance/fadeRange,0,1),fe=ft*ft*(3-2*ft);
    const scale=(1-.12*e).toFixed(3);
-   const opacity=Math.max(.06,distance<height*.23&&ratio>=.98?1:(1-.68*fe)*Math.min(1,ratio*1.8)).toFixed(3);
+   const opacity=Math.max(.06,(1-.68*fe)*Math.min(1,ratio*1.8)).toFixed(3);
    setStyle(node,scale,opacity);
   }
  }
