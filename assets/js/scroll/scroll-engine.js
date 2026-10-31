@@ -40,11 +40,10 @@ function mount(root,slots){
    }
   }finally{state.looping=false;}
  }
- function setStyle(node,scale,opacity,blur){
+ function setStyle(node,scale,opacity){
   const old=styleCache.get(node)||{};
   if(old.scale!==scale){node.style.setProperty('--mc-focus-scale',scale);old.scale=scale;}
   if(old.opacity!==opacity){node.style.setProperty('--mc-page-opacity',opacity);old.opacity=opacity;}
-  if(old.blur!==blur){node.style.setProperty('--mc-depth-blur',blur+'px');old.blur=blur;}
   styleCache.set(node,old);
  }
  function focus(){
@@ -63,8 +62,7 @@ function mount(root,slots){
    const t=clamp(distance/range,0,1),e=t*t*(3-2*t),ft=clamp(distance/fadeRange,0,1),fe=ft*ft*(3-2*ft);
    const scale=(1-.12*e).toFixed(3);
    const opacity=Math.max(.06,distance<height*.23&&ratio>=.98?1:(1-.68*fe)*Math.min(1,ratio*1.8)).toFixed(3);
-   const blur=(1.6*fe).toFixed(2);
-   setStyle(node,scale,opacity,blur);
+   setStyle(node,scale,opacity);
   }
  }
  function requestFrame(){
