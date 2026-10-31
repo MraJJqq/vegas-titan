@@ -145,14 +145,21 @@ function selectSymbol(value){
  loadLayer(nextLayer,symbol).then(loaded=>{
   if(!loaded||id!==token||manualSymbol!==symbol||document.hidden||state==='paused')return;
   updateHeader(symbol,views[nextLayer].rows);
-  // Crossfade only after the next chart has data; never expose an empty chart canvas.
-  layers.forEach(layer=>{layer.style.transition='opacity 650ms ease,filter 650ms ease';layer.style.willChange='opacity,filter';});
+  // Reveal the newly loaded chart over the full 10-second visual cycle.
+  // Prime the incoming layer in its dark state before starting the transition.
+  layers[nextLayer].style.transition='none';
+  layers[nextLayer].style.opacity='0';
+  layers[nextLayer].style.filter='brightness(.25)';
+  layers[nextLayer].style.willChange='opacity,filter';
+  layers[oldLayer].style.willChange='opacity,filter';
+  layers[nextLayer].getBoundingClientRect();
+  layers.forEach(layer=>{layer.style.transition='opacity 10000ms ease-in-out,filter 10000ms ease-in-out';});
   layers[oldLayer].style.pointerEvents='none';
   layers[oldLayer].style.opacity='0';layers[oldLayer].style.filter='brightness(.25)';
   layers[nextLayer].style.opacity='1';layers[nextLayer].style.filter='brightness(1)';
   layers[nextLayer].classList.add('is-active');layers[oldLayer].classList.remove('is-active');
   layers[nextLayer].style.pointerEvents='auto';active=nextLayer;
-  setTimeout(()=>layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';}),700);
+  setTimeout(()=>layers.forEach(layer=>{layer.style.transition='';layer.style.willChange='auto';}),10050);
   armManualReturn(symbol);
  });
  scheduleRefresh();return true;
