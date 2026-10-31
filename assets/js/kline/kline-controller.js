@@ -32,6 +32,10 @@ let active=0;
 let mode='hidden';
 let autoPhase='hold';
 let autoTimer=0;
+let autoTimerCallback=null;
+let autoTimerDueAt=0;
+let gesturePaused=false;
+let pausedAutoTimer=null;
 let manualTimer=0;
 let refreshTimer=0;
 let autoDueAt=0;
@@ -54,6 +58,20 @@ function ensureChart(){
 }
 function clearAutoTimer(){
  if(autoTimer){clearTimeout(autoTimer);autoTimer=0;}
+ autoTimerCallback=null;
+ autoTimerDueAt=0;
+}
+function armAutoTimer(callback,delay){
+ clearAutoTimer();
+ const wait=Math.max(0,delay);
+ autoTimerCallback=callback;
+ autoTimerDueAt=Date.now()+wait;
+ autoTimer=setTimeout(()=>{
+  autoTimer=0;
+  autoTimerCallback=null;
+  autoTimerDueAt=0;
+  callback();
+ },wait);
 }
 function clearManualTimer(){
  if(manualTimer){clearTimeout(manualTimer);manualTimer=0;}
@@ -235,8 +253,7 @@ function scheduleAutoHold(delay){
  autoPhase='hold';
  autoDueAt=Date.now()+Math.max(0,delay);
  mode='auto-hold';
- autoTimer=setTimeout(()=>{
-  autoTimer=0;
+ armAutoTimer(()=>{
   if(manualSymbol||document.hidden)return;
   startAutoTransition(TRANSITION_MS);
  },Math.max(0,delay));
@@ -368,8 +385,7 @@ function beginReveal(){
   if(mode==='revealing'&&!document.hidden)layer.style.filter='brightness(1)';
  });
  clearAutoTimer();
- autoTimer=setTimeout(()=>{
-  autoTimer=0;
+ armAutoTimer(()=>{
   if(mode!=='revealing')return;
   layer.style.transition='';
   layer.style.filter='brightness(1)';
@@ -435,6 +451,28 @@ function setQueue(values){
   scheduleRefresh();
  });
 }
+
+function pause(event){
+ if(!event||event.type!=='vr-gesture-start'||gesturePaused||mode==='hidden')return;
+ gesturePaused=true;
+ if(autoTimer&&autoTimerCallback){
+  pausedAutoTimer={callback:autoTimerCallback,remaining:Math.max(0,autoTimerDueAt-Date.now())};
+  clearTimeout(autoTimer);
+  autoTimer=0;
+  autoTimerCallback=null;
+  autoTimerDueAt=0;
+ }
+}
+function resume(event){
+ if(!event||event.type!=='vr-gesture-end'||!gesturePaused)return;
+ gesturePaused=false;
+ if(pausedAutoTimer){
+  const pending=pausedAutoTimer;
+  pausedAutoTimer=null;
+  armAutoTimer(pending.callback,pending.remaining);
+ }
+}
+
 function onVisibility(){
  if(document.hidden){
   if(mode==='auto-hold'||mode==='transitioning'){
@@ -471,6 +509,8 @@ function onVisibility(){
   scheduleRefresh();
  });
 }
+root.addEventListener('vr-gesture-start',pause);
+root.addEventListener('vr-gesture-end',resume);
 document.addEventListener('visibilitychange',onVisibility,{passive:true});
 window.VegasLayer5ShowSymbol=selectSymbol;
 window.VegasLayer5SetAutoQueue=setQueue;
