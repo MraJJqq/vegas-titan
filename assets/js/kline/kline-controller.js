@@ -58,7 +58,7 @@ async function loadLayer(index,symbol,timeframe){
   if(view.requestId!==requestId)return false;
   if(state==='paused'){
    // Do not replace candle data while a pointer gesture is in progress.
-   view.pendingRows=first;view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
+   view.pendingRows=first;view.pendingSymbol=symbol;view.pendingPeriod=timeframe;
   }else{
    chart.setData(index,first,symbol,timeframe,!changed);
    view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
@@ -99,7 +99,7 @@ function scheduleRefresh(delay=REFRESH_MS){
 }
 function applyDeferredRefresh(){
  if(state==='paused'||state==='preparing'||state==='transitioning')return;
- views.forEach((view,index)=>{if(view.pendingRows){const rows=view.pendingRows;view.pendingRows=null;chart.setData(index,rows,view.symbol,view.period,true);if(index===active&&view.symbol===current())updateHeader(view.symbol,rows);}});
+ views.forEach((view,index)=>{if(view.pendingRows){const rows=view.pendingRows,symbol=view.pendingSymbol||view.symbol,timeframe=view.pendingPeriod||view.period;view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;chart.setData(index,rows,symbol,timeframe,true);view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();if(index===active&&symbol===current())updateHeader(symbol,rows);}});
  if(refreshPending){refreshPending=false;scheduleRefresh(0);}
 }
 function scheduleCycle(delay=CLEAR_MS){
@@ -202,7 +202,7 @@ function setQueue(values){
  const next=[...new Set((values||[]).map(x=>String(x||'').trim().toUpperCase()).filter(x=>/^[A-Z0-9.]+$/.test(x)))];
  if(next.length===queue.length&&next.every((s,i)=>s===queue[i]))return;
  const previous=current();++token;clearTimer();clearRefresh();
- views.forEach(view=>{view.pendingRows=null;});
+ views.forEach(view=>{view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;});
  setLayerStyles(active,false);state='idle';
  queue=next;currentIndex=Math.max(0,queue.indexOf(previous));if(currentIndex>=queue.length)currentIndex=0;
  if(!queue.length&&!manualSymbol){hide();return;}
