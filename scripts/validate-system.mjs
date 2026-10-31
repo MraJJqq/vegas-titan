@@ -23,6 +23,11 @@ if(!kline.includes('/api/v3/market/candles')||!kline.includes('/api/v2/mix/marke
 if(!card.includes('VegasLayer5ShowSymbol')||!card.includes('VegasLayer5SetAutoQueue'))fail('Card/K-line bridge missing');
 if(!controller.includes('window.VegasLayer5ShowSymbol=selectSymbol')||!controller.includes('window.VegasLayer5SetAutoQueue=setQueue'))fail('K-line public contract missing');
 if(!controller.includes('function ensureChart()')||!controller.includes('chart.destroy();chart=null;views=[];'))fail('Lazy K-line lifecycle missing');
+const chartEngine=read('assets/js/kline/kline-chart.js');
+if(!chartEngine.includes('const viewport={visibleBars:90,rightGap:3}'))fail('Canonical K-line viewport model missing');
+if(chartEngine.includes('subscribeVisibleLogicalRangeChange'))fail('Legacy chart-range feedback loop remains');
+if(!chartEngine.includes('requestAnimationFrame')||!chartEngine.includes('vr-gesture-start')||!chartEngine.includes('vr-gesture-end'))fail('RAF gesture lifecycle contract missing');
+if(!controller.includes("root.addEventListener('vr-gesture-start',pause)")||!controller.includes("root.addEventListener('vr-gesture-end',resume)"))fail('K-line rotation is not coordinated with the unified gesture lifecycle');
 const html=read('index.html');
 for(const p of ['assets/js/signals/v9-events.js','assets/js/core/market-universe.js','assets/js/core/market-data.js','assets/js/cards/card-view.js','assets/js/scroll/scroll-engine.js','assets/js/cards/card-system.js','assets/js/kline/kline-data.js'])if(!html.includes(p))fail('Entry point missing '+p);
 if(!html.includes("chart.src='./assets/js/kline/kline-chart.js")||!html.includes("app.src='./assets/js/kline/kline-controller.js"))fail('Dynamic K-line loader missing');
