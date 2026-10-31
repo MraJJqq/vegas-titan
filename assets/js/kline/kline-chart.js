@@ -38,7 +38,7 @@ function create(root,layers,LWC,getActive){
    wickUpColor:'#2ee6a6',wickDownColor:'#ff5c7c',lastValueVisible:false,priceLineVisible:false
   });
   const lines=EMA.map((length,index)=>chart.addSeries(LWC.LineSeries,{color:COLORS[index],lineWidth:index?2:1,lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:false}));
-  return{layer,host,gesture,chart,candle,lines,rows:[],symbol:'',period:'4H',applying:false,applyId:0};
+  return{layer,host,gesture,chart,candle,lines,rows:[],symbol:'',period:'4H',applying:false,applyId:0,gesturing:false};
  });
  function activeView(){return views[getActive()];}
  function capture(view,syncPeers=false){
@@ -71,7 +71,7 @@ function create(root,layers,LWC,getActive){
   if(commit){viewport.visibleBars=visible;viewport.rightEdgeOffset=edge;viewport.period=period;scheduleSave();}
  }
  views.forEach((view,index)=>view.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{
-  if(index===getActive()&&!view.applying)capture(view,true);
+  if(index===getActive()&&!view.applying&&!view.gesturing)capture(view,true);
  }));
  function setData(index,rows,symbol,period,preserve=false){
   const view=views[index];if(!view)return;
@@ -101,11 +101,16 @@ function create(root,layers,LWC,getActive){
  resizeObserver?.observe(root);window.addEventListener('resize',scheduleResize,{passive:true});
  const pointers=new Map();let gesture=null;
  function range(view){const r=view.chart.timeScale().getVisibleLogicalRange();return r&&r.to>r.from?{from:r.from,to:r.to,width:r.to-r.from}:null;}
+ let viewportCommitFrame=0;
+ function commitViewport(view){
+  if(viewportCommitFrame)cancelAnimationFrame(viewportCommitFrame);
+  viewportCommitFrame=requestAnimationFrame(()=>{viewportCommitFrame=0;if(view===activeView())capture(view,true);});
+ }
  function applyRange(view,from,to){if(to>from)try{view.chart.timeScale().setVisibleLogicalRange({from,to})}catch{}}
  function down(event){
   const view=views[getActive()];if(!view.rows.length)return;
   event.preventDefault();try{event.currentTarget.setPointerCapture(event.pointerId)}catch{}
-  pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});view.gesturing=true;
   const r=range(view);if(!r)return;
   if(pointers.size===1)gesture={type:'drag',view,range:r,startX:event.clientX,spacing:Math.max(.5,view.chart.timeScale().options().barSpacing||5)};
   else if(pointers.size===2){const p=[...pointers.values()];gesture={type:'pinch',view,range:r,distance:Math.max(1,Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)),center:(p[0].x+p[1].x)/2};}
@@ -125,9 +130,10 @@ function create(root,layers,LWC,getActive){
   }
  }
  function up(event){
-  if(!pointers.has(event.pointerId))return;pointers.delete(event.pointerId);
-  if(pointers.size===1){const [id,p]=[...pointers.entries()][0],view=views[getActive()],r=range(view);if(r)gesture={type:'drag',view,range:r,startX:p.x,spacing:Math.max(.5,view.chart.timeScale().options().barSpacing||5)};}
-  else gesture=null;
+  if(!pointers.has(event.pointerId))return;
+  const view=gesture?.view||activeView();pointers.delete(event.pointerId);
+  if(pointers.size===1){const [id,p]=[...pointers.entries()][0],r=range(view);if(r)gesture={type:'drag',view,range:r,startX:p.x,spacing:Math.max(.5,view.chart.timeScale().options().barSpacing||5)};}
+  else{gesture=null;view.gesturing=false;commitViewport(view);}
  }
  views.forEach(view=>{
   view.gesture.addEventListener('pointerdown',down,{passive:false});
@@ -137,13 +143,13 @@ function create(root,layers,LWC,getActive){
   view.gesture.addEventListener('wheel',event=>{
    const r=range(view);if(!r)return;event.preventDefault();
    const width=Math.max(2,Math.min(5000,r.width*(event.deltaY>0?1.12:.89)));
-   applyRange(view,r.to-width,r.to);
+   applyRange(view,r.to-width,r.to);commitViewport(view);
   },{passive:false});
  });
  function onPageHide(){capture(activeView());save();}
  window.addEventListener('pagehide',onPageHide,{passive:true});
  return{views,setData,sync,capture,resize:scheduleResize,destroy(){
-  save();clearTimeout(saveTimer);if(resizeFrame)cancelAnimationFrame(resizeFrame);
+  save();clearTimeout(saveTimer);if(resizeFrame)cancelAnimationFrame(resizeFrame);if(viewportCommitFrame)cancelAnimationFrame(viewportCommitFrame);
   resizeObserver?.disconnect();window.removeEventListener('resize',scheduleResize);window.removeEventListener('pagehide',onPageHide);
   views.forEach(view=>{view.chart.remove();view.gesture.remove();view.host.remove();});
  }};
