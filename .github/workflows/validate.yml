@@ -1,7 +1,7 @@
 name: V1 Core System Validation
 on:
   push:
-    branches: ["rebuild/core-systems", "main", "refactor/kline-core-20261031"]
+    branches: ["rebuild/core-systems", "main"]
   pull_request:
     branches: ["main"]
 jobs:
