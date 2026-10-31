@@ -7,7 +7,7 @@ function mount(root,slots){
  const state={mode:'auto',raf:0,lastTime:0,autoDelayUntil:performance.now()+250,
   wheelTarget:root.scrollTop,wheelSpeed:0,touching:false,dragging:false,
   touchY:0,touchTime:0,touchSpeed:0,lastScroll:root.scrollTop,looping:false};
- let gap=0,stride=0,totalHeight=0,scaleMax=1,geometryDirty=true,autoFraction=0,lastFocusRange='';
+ let gap=0,stride=0,totalHeight=0,geometryDirty=true,autoFraction=0,lastFocusRange='';
  let alive=true,lastErrorAt=0;
  const styleCache=new WeakMap();
  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
@@ -16,8 +16,6 @@ function mount(root,slots){
   gap=parseFloat(getComputedStyle(root).rowGap)||0;
   stride=ordered[0]?ordered[0].offsetHeight+gap:0;
   totalHeight=ordered.reduce((sum,node)=>sum+node.offsetHeight,0)+gap*Math.max(0,ordered.length-1);
-  const first=ordered[0],card=first?.querySelector('.mc-card');
-  if(first&&card){const cs=getComputedStyle(first),pad=(parseFloat(cs.paddingLeft)||0)+(parseFloat(cs.paddingRight)||0);scaleMax=Math.min(1.16,Math.max(1,(first.clientWidth-pad-8)/Math.max(1,card.offsetWidth)));}
   geometryDirty=false;
  }
  function normalize(direction){
