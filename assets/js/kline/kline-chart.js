@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 const EMA=window.VegasKlineData.emas;
-const COLORS=['#f5d76e','#00B0FF','#00B0FF','#f4d35e','#f4d35e','#ff4e5e','#ff4e5e'];
+const COLORS=['#f5d76e','#BEE9F0','#BEE9F0','#f4d35e','#f4d35e','#ff4e5e','#ff4e5e'];
 const STORAGE_KEY='vegas-layer5-viewport-v4';
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 function create(root,layers,LWC,getActive){
