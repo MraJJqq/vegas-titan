@@ -225,7 +225,7 @@ function setQueue(values){
  });
 }
 function visibility(){
- if(document.hidden){++token;clearTimer();clearRefresh();views.forEach(view=>{view.requestId=(view.requestId||0)+1;});state='hidden';return;}
+ if(document.hidden){++token;clearTimer();clearRefresh();activePointers.clear();views.forEach(view=>{view.requestId=(view.requestId||0)+1;});state='hidden';return;}
  const symbol=current();if(!symbol)return;
  setLayerStyles(active,false);showRoot();loadLayer(active,symbol,periodFor(symbol)).then(ok=>{
   if(!ok)return;
