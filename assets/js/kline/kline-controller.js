@@ -149,7 +149,7 @@ function selectSymbol(value){
  showRoot();setLayerStyles(active,false);title.textContent=symbol;error.hidden=true;
  period=periodFor(symbol);setPeriodButtons();
  loadLayer(active,symbol,period).then(loaded=>{
-  if(!loaded||manualSymbol!==symbol||document.hidden)return;
+  if(!loaded||manualSymbol!==symbol||document.hidden||state==='paused')return;
   updateHeader(symbol,views[active].rows);armManualReturn(symbol);
  });
  scheduleRefresh();return true;
@@ -169,6 +169,7 @@ function changePeriod(value){
  chart.capture(views[active]);period=value;periodSettings[symbol]=value;savePeriods();setPeriodButtons();
  ++token;clearTimer();state=manualSymbol?'manual':'paused';
  loadLayer(active,symbol,value).then(ok=>{
+  if(state==='paused')return;
   if(!ok){state=manualSymbol?'manual':'idle';if(!manualSymbol)scheduleCycle(CLEAR_MS);return;}
   state=manualSymbol?'manual':'idle';
   if(manualSymbol)armManualReturn(symbol);else scheduleCycle(CLEAR_MS);
