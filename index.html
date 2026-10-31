@@ -30,7 +30,7 @@
 <script src="./assets/js/signals/v9-events.js?v=v1-core-1"></script>
 <script src="./assets/js/core/market-universe.js?v=v1-core-1"></script>
 <script src="./assets/js/core/market-data.js?v=v1-core-1"></script>
-<script src="./assets/js/cards/card-view.js?v=card-pointer-fix-1"></script>
+<script src="./assets/js/cards/card-view.js?v=card-pointer-fix-2"></script>
 <script src="./assets/js/scroll/scroll-engine.js?v=v1-core-1"></script>
 <script src="./assets/js/cards/card-system.js?v=v1-core-1"></script>
 <script src="./assets/js/kline/kline-data.js?v=v1-core-1"></script>
@@ -43,7 +43,7 @@
  function loadSource(index){
   if(index>=sources.length){console.error('[Vegas Right Scroll] chart library failed to load');return;}
   const script=document.createElement('script');script.src=sources[index];
-  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=viewport-sync-1';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=v1-core-1';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
+  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=viewport-sync-2';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=v1-core-1';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
   script.onerror=function(){script.remove();loadSource(index+1);};document.head.appendChild(script);
  }
  loadSource(0);
