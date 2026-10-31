@@ -85,7 +85,7 @@ function create(root,layers,LWC,getActive){
    view.candle.setData(rows);view.lines.forEach((series,i)=>series.setData(emaRows[i]));
   }
   view.rows=rows;view.symbol=symbol;view.period='4H';
-  view.chart.applyOptions({rightPriceScale:{autoScale:true,scaleMargins:{top:.10,bottom:.10}}});apply(view);
+  apply(view);
  }
  function sync(from,to){
   const source=views[from],target=views[to];
