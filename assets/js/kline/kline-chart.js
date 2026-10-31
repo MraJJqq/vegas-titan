@@ -107,6 +107,8 @@ function create(root,layers,LWC,getActive){
   if(root.hidden)return;
   const w=Math.max(1,root.clientWidth||innerWidth||1),h=Math.max(1,root.clientHeight||innerHeight||1);
   views.forEach(view=>{try{view.chart.resize(w,h)}catch(error){console.warn('[Vegas Kline] resize failed',error);}});
+  const view=activeView();
+  if(view?.rows.length)requestAnimationFrame(()=>{if(!root.hidden&&view===activeView())capture(view,true);});
  }
  function scheduleResize(){
   if(root.hidden||resizeFrame)return;
@@ -146,28 +148,42 @@ function create(root,layers,LWC,getActive){
    applyRange(view,gesture.range.from+shift,gesture.range.to+shift);
   }
  }
- function up(event){
+ function finishPointer(event){
   if(!pointers.has(event.pointerId))return;
   const view=gesture?.view||activeView();pointers.delete(event.pointerId);
-  if(pointers.size===1){const [id,p]=[...pointers.entries()][0],r=range(view);if(r)gesture={type:'drag',view,range:r,startX:p.x,spacing:Math.max(.5,view.chart.timeScale().options().barSpacing||5)};}
-  else{gesture=null;view.gesturing=false;commitViewport(view);}
+  if(pointers.size===1){
+   const [id,p]=[...pointers.entries()][0],r=range(view);
+   if(r)gesture={type:'drag',view,range:r,startX:p.x,spacing:Math.max(.5,view.chart.timeScale().options().barSpacing||5)};
+  }else{
+   gesture=null;view.gesturing=false;commitViewport(view);
+  }
+ }
+ function cancelAllPointers(){
+  if(!pointers.size)return;
+  const view=gesture?.view||activeView();pointers.clear();gesture=null;
+  if(view){view.gesturing=false;commitViewport(view);}
  }
  views.forEach(view=>{
   view.gesture.addEventListener('pointerdown',down,{passive:false});
   view.gesture.addEventListener('pointermove',move,{passive:false});
-  view.gesture.addEventListener('pointerup',up,{passive:true});
-  view.gesture.addEventListener('pointercancel',up,{passive:true});
+  view.gesture.addEventListener('pointerup',finishPointer,{passive:true});
+  view.gesture.addEventListener('pointercancel',finishPointer,{passive:true});
+  view.gesture.addEventListener('lostpointercapture',finishPointer,{passive:true});
   view.gesture.addEventListener('wheel',event=>{
    const r=range(view);if(!r)return;event.preventDefault();
    const width=Math.max(2,Math.min(5000,r.width*(event.deltaY>0?1.12:.89)));
    applyRange(view,r.to-width,r.to);commitViewport(view);
   },{passive:false});
  });
- function onPageHide(){capture(activeView());save();}
+ function onPageHide(){cancelAllPointers();capture(activeView());save();}
+ function onWindowBlur(){cancelAllPointers();}
+ function onVisibilityChange(){if(document.hidden)cancelAllPointers();}
  window.addEventListener('pagehide',onPageHide,{passive:true});
+ window.addEventListener('blur',onWindowBlur,{passive:true});
+ document.addEventListener('visibilitychange',onVisibilityChange,{passive:true});
  return{views,setData,sync,capture,resize:scheduleResize,destroy(){
   save();clearTimeout(saveTimer);if(resizeFrame)cancelAnimationFrame(resizeFrame);if(viewportCommitFrame)cancelAnimationFrame(viewportCommitFrame);
-  resizeObserver?.disconnect();window.removeEventListener('resize',scheduleResize);window.removeEventListener('pagehide',onPageHide);
+  cancelAllPointers();resizeObserver?.disconnect();window.removeEventListener('resize',scheduleResize);window.removeEventListener('pagehide',onPageHide);window.removeEventListener('blur',onWindowBlur);document.removeEventListener('visibilitychange',onVisibilityChange);
   views.forEach(view=>{if(view.expectedTimer)clearTimeout(view.expectedTimer);view.chart.remove();view.gesture.remove();view.host.remove();});
  }};
 }
