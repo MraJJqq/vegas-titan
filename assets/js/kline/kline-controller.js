@@ -103,14 +103,14 @@ function showRoot(){
 function updateHeader(symbol,rows,historyComplete){
  title.textContent=String(symbol||'').toUpperCase();
  const instrument=window.VegasMarketUniverse?.find(item=>item.symbol===symbol);
- const iconSlugs={AAPL:'apple',MSFT:'microsoft',GOOGL:'google',AMZN:'amazon',NVDA:'nvidia',TSLA:'tesla',META:'meta',INTC:'intel',QCOM:'qualcomm',AMD:'amd',TSM:'tsmc',AVGO:'broadcom',ORCL:'oracle',ARM:'arm',MU:'micron',ASML:'asml',SNDK:'sandisk',SKHYNIX:'skhynix',MRVL:'marvell',GLW:'corning',HOOD:'robinhoodmarkets',CBRS:'',SPCX:'spacex',BTC:'bitcoin',HYPE:'',XAU:'',CL:''};
- const slug=iconSlugs[symbol];
+ const localLogos={AAPL:'apple',NVDA:'nvidia',TSLA:'tesla',META:'meta',INTC:'intel',AMD:'amd',AVGO:'broadcom',ARM:'arm',QCOM:'qualcomm',HOOD:'robinhood',SPCX:'spacex',BTC:'bitcoin'};
+ const slug=localLogos[symbol];
  if(logo){
-  logo.hidden=!slug;
-  logo.onerror=()=>{logo.hidden=true;if(logoFallback){logoFallback.hidden=false;logoFallback.textContent=instrument?.icon||symbol.slice(0,1);}};
-  if(slug){logo.src='https://cdn.simpleicons.org/'+slug+'/E8F5FF';if(logoFallback)logoFallback.hidden=true;}
+  logo.onerror=()=>{logo.hidden=true;if(logoFallback){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}};
+  if(slug){logo.hidden=false;logo.src='./assets/logos/'+slug+'.svg';if(logoFallback)logoFallback.hidden=true;}
+  else{logo.hidden=true;}
  }
- if(logoFallback&&!slug){logoFallback.hidden=false;logoFallback.textContent=instrument?.icon||symbol.slice(0,1);}
+ if(logoFallback&&!slug){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}
 
  if(rows&&rows.length){
   const target=data.warmupBars||4000;
