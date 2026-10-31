@@ -24,7 +24,7 @@ const TRANSITION_MS=5000;
 const MANUAL_TOTAL_MS=10000;
 const REVEAL_MS=1000;
 const INITIAL_HOLD_MS=4000;
-const REFRESH_MS=15000;
+const REFRESH_MS=60000;
 
 let queue=[];
 let currentIndex=0;
@@ -122,6 +122,7 @@ function loadLayer(index,symbol){
  return data.load(symbol,timeframe).then(first=>{
   if(view.requestId!==requestId)return false;
   chart.setData(index,first,symbol,timeframe);
+  view.rows=first;
   view.symbol=symbol;
   view.period=timeframe;
   view.hasData=true;
