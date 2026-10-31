@@ -15,6 +15,8 @@ if(!market.includes('/api/v3/market/candles?')||!market.includes('/api/v2/mix/ma
 if(!market.includes('visibleSymbols')||!market.includes('miniLastAt')||!market.includes('length:2'))fail('Visible-card mini-candle throttling missing');
 const kline=read('assets/js/kline/kline-data.js'),scrollEngine=read('assets/js/scroll/scroll-engine.js'),view=read('assets/js/cards/card-view.js'),card=read('assets/js/cards/card-system.js'),controller=read('assets/js/kline/kline-controller.js');
 if(!scrollEngine.includes("removeEventListener('touchend',onTouchEnd,true)")||!scrollEngine.includes("removeEventListener('touchcancel',onTouchCancel,true)"))fail('Scroll touch listener teardown missing');
+if(scrollEngine.includes('--mc-depth-blur'))fail('Unused card depth-blur state remains in scroll engine');
+if(controller.includes('autoPhase')||controller.includes('targetIndex')||controller.includes('transitionTarget'))fail('Unused K-line controller state remains');
 if(!scrollEngine.includes("state.timer=setTimeout(schedule,33)")||!scrollEngine.includes("state.mode==='touch')return")||!scrollEngine.includes('focus();'))fail('Adaptive scroll scheduler or direct touch-frame rendering missing');
 if(!view.includes('const chartOwners=new WeakMap()'))fail('Card canvas resize lookup optimization missing');
 if(!view.includes('if(candlesChanged&&item.candles.length&&isVisible(item))draw(item)')||!view.includes("root.removeEventListener('mc-slot-visibility',onSlotVisibility)"))fail('Offscreen mini-chart rendering optimization or shared visibility lifecycle missing');
