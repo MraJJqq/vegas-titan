@@ -16,7 +16,6 @@ if(!market.includes('visibleSymbols')||!market.includes('miniLastAt')||!market.i
 const kline=read('assets/js/kline/kline-data.js'),scrollEngine=read('assets/js/scroll/scroll-engine.js'),view=read('assets/js/cards/card-view.js'),card=read('assets/js/cards/card-system.js'),controller=read('assets/js/kline/kline-controller.js');
 if(!scrollEngine.includes("removeEventListener('touchend',onTouchEnd,true)")||!scrollEngine.includes("removeEventListener('touchcancel',onTouchCancel,true)"))fail('Scroll touch listener teardown missing');
 if(!scrollEngine.includes("state.timer=setTimeout(schedule,33)")||!scrollEngine.includes("state.mode==='touch')return")||!scrollEngine.includes('focus();'))fail('Adaptive scroll scheduler or direct touch-frame rendering missing');
-if(!html.includes('scroll-engine.js?v=adaptive-frame-scheduler-1'))fail('Adaptive scroll scheduler cache version missing');
 if(!view.includes('const chartOwners=new WeakMap()'))fail('Card canvas resize lookup optimization missing');
 if(!view.includes('if(candlesChanged&&item.candles.length&&isVisible(item))draw(item)')||!view.includes("root.removeEventListener('mc-slot-visibility',onSlotVisibility)"))fail('Offscreen mini-chart rendering optimization or shared visibility lifecycle missing');
 if(!kline.includes('while(cache.size>90)'))fail('K-line cache bound missing');
@@ -35,6 +34,7 @@ if(!appCss.includes('--z-layer-kline:10;--z-layer-between:20;--z-layer-scroll:30
 if(appCss.includes('--z-layer-between-min')||appCss.includes('--z-layer-between-max')||appCss.includes('--z-layer-cards'))fail('Obsolete layer z-index tokens remain');
 if(!appCss.includes('#market-cards-layer{--up:#2ee6a6;position:fixed;z-index:var(--z-layer-scroll);')||!appCss.includes('#market-cards-layer .mc-columns{position:absolute;inset:0 auto 0 0;width:min(100vw,380px);min-width:0;min-height:0;overflow:visible;pointer-events:none;')||!appCss.includes('#market-cards-layer .mc-side{position:relative;z-index:2;'))fail('Only the real card scroll viewport may receive pointer/touch input above K-line');
 const html=read('index.html');
+if(!html.includes('scroll-engine.js?v=adaptive-frame-scheduler-1'))fail('Adaptive scroll scheduler cache version missing');
 const klinePos=html.indexOf('id="vegas-right-scroll"');
 const scrollPos=html.indexOf('id="market-cards-layer"');
 const tickerPos=html.indexOf('id="vegas-signal-ticker"');
