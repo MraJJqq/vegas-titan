@@ -4,7 +4,7 @@
 function mount(root,slots){
  if(!root||!slots?.length)throw Error('Scroll engine requires root and card slots');
  const ordered=slots.slice();
- const state={mode:'auto',raf:0,lastTime:0,autoDelayUntil:performance.now()+250,
+ const state={mode:'auto',raf:0,timer:0,lastTime:0,autoDelayUntil:performance.now()+250,
   wheelTarget:root.scrollTop,wheelSpeed:0,touchPending:false,touching:false,dragging:false,
   touchY:0,touchTime:0,touchSpeed:0,lastScroll:root.scrollTop,looping:false};
  let gap=0,stride=0,totalHeight=0,geometryDirty=true,autoFraction=0,lastFocusRange='';
@@ -68,11 +68,12 @@ function mount(root,slots){
   }
  }
  function requestFrame(){
-  if(!alive||state.raf||document.hidden)return;
-  try{state.raf=requestAnimationFrame(frame);}
-  catch(error){recover(error);}
+  if(!alive||state.raf||state.timer||document.hidden||state.mode==='touch')return;
+  const schedule=()=>{state.timer=0;if(!alive||document.hidden)return;try{state.raf=requestAnimationFrame(frame);}catch(error){recover(error);}};
+  if(state.mode==='auto')state.timer=setTimeout(schedule,33);
+  else schedule();
  }
- function cancelFrame(){if(state.raf)cancelAnimationFrame(state.raf);state.raf=0;state.lastTime=0;}
+ function cancelFrame(){if(state.timer){clearTimeout(state.timer);state.timer=0;}if(state.raf)cancelAnimationFrame(state.raf);state.raf=0;state.lastTime=0;}
  function move(delta,direction){
   if(!Number.isFinite(delta)||Math.abs(delta)<.01)return;
   root.scrollTop+=delta;
@@ -114,7 +115,7 @@ function mount(root,slots){
    }
    focus();
   }catch(error){recover(error);}
-  finally{requestFrame();}
+  finally{if(state.mode==='auto'||state.mode==='wheel'||state.mode==='inertia')requestFrame();}
  }
  function onWheel(event){
   if(Math.abs(event.deltaY)<.1)return;
@@ -141,8 +142,9 @@ function mount(root,slots){
   if(Math.abs(delta)>.05){
    move(delta,Math.sign(delta));
    state.touchSpeed=clamp(state.touchSpeed*.35+clamp(delta/elapsed,-3.6,3.6)*.65,-3.6,3.6);
+   focus();
   }
-  state.touchY=touch.clientY;state.touchTime=now;requestFrame();
+  state.touchY=touch.clientY;state.touchTime=now;
  }
  function endTouch(cancelled){
   if(state.touchPending){state.touchPending=false;return;}
