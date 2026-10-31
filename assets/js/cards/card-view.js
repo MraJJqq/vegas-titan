@@ -111,8 +111,12 @@ function mount(root,instruments,onSelect){
    if(candlesChanged)item.candles=data.candles;
    if(item.price>0&&item.open>0){
     const up=item.price>=item.open,n=price(item.price),pct=(up?'+':'')+((item.price/item.open-1)*100).toFixed(2)+'%';
-    item.nodes.card.classList.toggle('up',up);item.nodes.card.classList.toggle('dn',!up);
-    item.nodes.card.style.setProperty('--mc-color',up?'#00f5a0':'#ff3b6b');
+    const direction=up?'up':'dn';
+    if(item.lastDirection!==direction){
+     item.nodes.card.classList.toggle('up',up);item.nodes.card.classList.toggle('dn',!up);
+     item.nodes.card.style.setProperty('--mc-color',up?'#00f5a0':'#ff3b6b');
+     item.lastDirection=direction;
+    }
     if(item.nodes.price.textContent!==n)item.nodes.price.textContent=n;
     if(item.nodes.change.textContent!==pct)item.nodes.change.textContent=pct;
    }
