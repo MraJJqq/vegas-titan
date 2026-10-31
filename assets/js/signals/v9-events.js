@@ -31,6 +31,22 @@
     }
     return result;
   }
+  function initialPageQueue(values,date){
+    const result=shuffled(values);
+    if(result.length<2)return result;
+    const key="vegas-titan:last-kline-first:"+date;
+    try{
+      const previous=window.localStorage.getItem(key);
+      if(previous&&result[0]===previous){
+        const swapIndex=1+Math.floor(Math.random()*(result.length-1));
+        [result[0],result[swapIndex]]=[result[swapIndex],result[0]];
+      }
+      window.localStorage.setItem(key,result[0]);
+    }catch(error){
+      // Storage may be unavailable; keep the randomized queue without blocking signals.
+    }
+    return result;
+  }
   function renderSymbols(targetId,symbols){
     const target=$(targetId);
     if(!target)return;
@@ -101,7 +117,7 @@
         if(ALLOWED.has(s))seen.add(s);
       }
       if(!pageQueueInitialized){
-        pageQueue=shuffled(Array.from(seen));
+        pageQueue=initialPageQueue(Array.from(seen),daily.date);
         pageQueueInitialized=true;
       }else{
         pageQueue=pageQueue.filter(symbol=>seen.has(symbol));
