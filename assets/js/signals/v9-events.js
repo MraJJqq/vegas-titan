@@ -1,8 +1,8 @@
-/* 第二层：最新事件模块，读取正式信号状态。 */
+/* V9 formal signal feed: single source is Vegas V9; this module only reads and distributes it. */
 (function(){
   if(window.__VEGAS_V9_EVENTS_INIT__)return;
   window.__VEGAS_V9_EVENTS_INIT__=true;
-  const STATE_URL="https://raw.githubusercontent.com/MraJJqq/vegas-octopus/main/data/v9-signals.json";
+  const STATE_URL="https://raw.githubusercontent.com/MraJJqq/vegas-titan/main/data/v9-signals.json";
   const CORE_ORDER=["BTC","HYPE","XAU","CL"];
   const STOCK_ORDER=["AAPL","MSFT","GOOGL","AMZN","NVDA","TSLA","META","INTC","QCOM","AMD","TSM","AVGO","ORCL","ARM","MU","ASML","SNDK","SKHYNIX","MRVL","GLW","HOOD","CBRS","SPCX"];
   const ALLOWED=new Set(CORE_ORDER.concat(STOCK_ORDER));
@@ -61,10 +61,10 @@
     const timeout=window.setTimeout(()=>controller.abort(),10000);
     try{
       const response=await fetch(STATE_URL+"?t="+Date.now(),{cache:"no-store",signal:controller.signal});
-      if(!response.ok)throw new Error("公开信号镜像 HTTP "+response.status);
+      if(!response.ok)throw new Error("V9信号源 HTTP "+response.status);
       return await response.json();
     }catch(error){
-      if(error&&error.name==="AbortError")throw new Error("公开信号镜像请求超时（10秒）");
+      if(error&&error.name==="AbortError")throw new Error("V9信号源请求超时（10秒）");
       throw error;
     }finally{
       window.clearTimeout(timeout);
@@ -97,7 +97,7 @@
     }catch(error){
       const detail=String(error&&error.message||error).slice(0,70);
       if(!hasSuccessfulState)renderMessage("读取失败："+detail);
-      console.warn("V9 latest-events refresh failed; retaining last valid state:",error);
+      console.warn("V9 formal signal feed refresh failed; retaining last valid state:",error);
     }finally{
       refreshInProgress=false;
     }
