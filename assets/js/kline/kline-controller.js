@@ -463,7 +463,7 @@ function pause(event){
  }
  if(mode==='transitioning'||mode==='manual-transition'){
   pausedTransitionStyles={
-   remaining:Math.max(0,autoTimerDueAt-Date.now()),
+   remaining:pausedAutoTimer?pausedAutoTimer.remaining:Math.max(0,autoTimerDueAt-Date.now()),
    target:active
   };
   pausedTransitionStyles.styles=layers.map(layer=>{
