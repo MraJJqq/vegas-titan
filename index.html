@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#02040a">
@@ -33,7 +35,7 @@
 <script src="./assets/js/cards/card-view.js?v=card-render-guard-2"></script>
 <script src="./assets/js/scroll/scroll-engine.js?v=continuous-fade-3"></script>
 <script src="./assets/js/cards/card-system.js?v=v1-core-1"></script>
-<script src="./assets/js/kline/kline-data.js?v=idb-prune-opt-2"></script>
+<script src="./assets/js/kline/kline-data.js?v=cache-first-3"></script>
 <script>
 (function(){
  const sources=[
@@ -43,7 +45,7 @@
  function loadSource(index){
   if(index>=sources.length){console.error('[Vegas Right Scroll] chart library failed to load');return;}
   const script=document.createElement('script');script.src=sources[index];
-  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=chart-options-cache-2';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=floating-logo-upper-1';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
+  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=chart-options-cache-2';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=cache-first-3';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
   script.onerror=function(){script.remove();loadSource(index+1);};document.head.appendChild(script);
  }
  loadSource(0);
