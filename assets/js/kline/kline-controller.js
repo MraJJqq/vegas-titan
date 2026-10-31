@@ -191,13 +191,24 @@ function beginTransition(symbol,duration,kind,id,onComplete){
    if(typeof onComplete==='function')onComplete(false);
    return;
   }
+  const transitionDuration=typeof duration==='function'?Math.max(0,duration()):duration;
+  if(id!==generation||document.hidden)return;
+  if(transitionDuration<=0){
+   active=to;
+   setLayerStyles(to,false,0);
+   updateHeader(symbol,views[to].rows);
+   mode=manualSymbol?'manual':'idle';
+   applyDeferredRefresh();
+   if(typeof onComplete==='function')onComplete(true);
+   return;
+  }
   chart.sync(from,to);
   layers.forEach(layer=>{layer.style.willChange='opacity,filter';});
   setLayerStyles(from,false,0);
   layers[to].style.opacity='0';
   layers[to].style.filter='brightness(.25)';
   layers[to].getBoundingClientRect();
-  setLayerStyles(to,true,duration);
+  setLayerStyles(to,true,transitionDuration);
   active=to;
   updateHeader(symbol,views[to].rows);
   const finish=()=>{
@@ -325,9 +336,8 @@ function selectSymbol(value){
  const remaining=()=>Math.max(0,manualDeadline-Date.now());
  const start=()=>{
   if(id!==generation||manualSymbol!==symbol||document.hidden)return;
-  const duration=Math.min(TRANSITION_MS,remaining());
-  if(duration<=0){restoreAuto();return;}
-  beginTransition(symbol,duration,'manual-transition',id,()=>{
+   if(remaining()<=0){restoreAuto();return;}
+  beginTransition(symbol,()=>Math.min(TRANSITION_MS,remaining()),'manual-transition',id,()=>{
    if(id!==generation||manualSymbol!==symbol)return;
    mode='manual';
   });
