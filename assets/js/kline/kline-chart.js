@@ -7,6 +7,7 @@ const STORAGE_KEY='vegas-layer5-viewport-v4';
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 function create(root,layers,LWC,getActive){
  const viewport={visibleBars:90,rightGap:3};
+ const appliedRanges=new WeakMap();
  try{
   const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
   if(saved&&Number.isFinite(saved.visibleBars))viewport.visibleBars=clamp(saved.visibleBars,2,5000);
@@ -50,7 +51,7 @@ function create(root,layers,LWC,getActive){
  function apply(view){
   if(!view||!view.rows.length)return;
   const range=targetRange(view.rows);
-  try{view.chart.timeScale().setVisibleLogicalRange(range);}catch(error){console.warn('[Vegas Kline] apply viewport failed',error);}
+  try{view.chart.timeScale().setVisibleLogicalRange(range);appliedRanges.set(view,range);}catch(error){console.warn('[Vegas Kline] apply viewport failed',error);}
  }
  function applyPeers(except){
   views.forEach(view=>{if(view!==except&&view.rows.length)apply(view);});
@@ -125,10 +126,11 @@ function create(root,layers,LWC,getActive){
  function currentRange(view){const r=view.chart.timeScale().getVisibleLogicalRange();return r&&r.to>r.from?{from:r.from,to:r.to,width:r.to-r.from}:null;}
  function applyRange(view,from,to){
   if(!Number.isFinite(from)||!Number.isFinite(to)||to<=from)return;
-  const current=currentRange(view);
-  // Avoid issuing an identical viewport update more than once per rendered frame.
-  if(current&&Math.abs(current.from-from)<.015&&Math.abs(current.to-to)<.015)return;
-  try{view.chart.timeScale().setVisibleLogicalRange({from,to});}catch{}
+  const current=appliedRanges.get(view)||currentRange(view);
+  // Use the last range we submitted instead of querying the chart on every pointer frame.
+  if(current&&Math.abs(current.from-from)<.03&&Math.abs(current.to-to)<.03)return;
+  const next={from,to};
+  try{view.chart.timeScale().setVisibleLogicalRange(next);appliedRanges.set(view,next);}catch{}
  }
  function point(event){return{x:event.clientX,y:event.clientY};}
  function onPointerDown(event){
@@ -146,7 +148,7 @@ function create(root,layers,LWC,getActive){
   if(pointers.size===1)activeGesture={kind:'drag',view,base:r,startX:event.clientX,pixelsPerBar:rect.width/Math.max(1,r.width)};
   else if(pointers.size===2){
    const p=[...pointers.values()];
-   activeGesture={kind:'pinch',view,base:r,startDistance:Math.max(1,Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)),startCenter:(p[0].x+p[1].x)/2};
+   activeGesture={kind:'pinch',view,base:r,startDistance:Math.max(1,Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)),startCenter:(p[0].x+p[1].x)/2,rectWidth:rect.width};
   }
  }
  function processGestureFrame(){
@@ -157,10 +159,11 @@ function create(root,layers,LWC,getActive){
    const p=[...pointers.values()][0],shift=(g.startX-p.x)/Math.max(.01,g.pixelsPerBar);
    applyRange(g.view,g.base.from+shift,g.base.to+shift);
   }else if(g&&g.kind==='pinch'&&pointers.size>=2){
-   const p=[...pointers.values()].slice(0,2),distance=Math.max(1,Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y));
-   const center=(p[0].x+p[1].x)/2,rect=g.view.gesture.getBoundingClientRect();
+   const iterator=pointers.values(),first=iterator.next().value,second=iterator.next().value;
+   const distance=Math.max(1,Math.hypot(first.x-second.x,first.y-second.y));
+   const center=(first.x+second.x)/2;
    const width=clamp(g.base.width*g.startDistance/distance,2,5000);
-   const shift=(g.startCenter-center)/Math.max(1,rect.width)*g.base.width;
+   const shift=(g.startCenter-center)/Math.max(1,g.rectWidth)*g.base.width;
    const mid=(g.base.from+g.base.to)/2+shift;
    applyRange(g.view,mid-width/2,mid+width/2);
   }
