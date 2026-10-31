@@ -29,15 +29,15 @@ if(chartEngine.includes('subscribeVisibleLogicalRangeChange'))fail('Legacy chart
 if(!chartEngine.includes('requestAnimationFrame')||!chartEngine.includes('vr-gesture-start')||!chartEngine.includes('vr-gesture-end'))fail('RAF gesture lifecycle contract missing');
 if(!controller.includes("root.addEventListener('vr-gesture-start',pause)")||!controller.includes("root.addEventListener('vr-gesture-end',resume)"))fail('K-line rotation is not coordinated with the unified gesture lifecycle');
 const appCss=read('assets/css/app.css');
-if(!appCss.includes('--z-layer-kline:10;--z-layer-scroll:20;--z-layer-ticker:50'))fail('Explicit K-line < scroll-container < ticker stacking order missing');
+if(!appCss.includes('--z-layer-kline:10;--z-layer-between:20;--z-layer-scroll:30;--z-layer-ticker:50'))fail('Explicit K-line < reserved middle layer < scroll/cards < ticker stacking order missing');
 if(appCss.includes('--z-layer-between-min')||appCss.includes('--z-layer-between-max')||appCss.includes('--z-layer-cards'))fail('Obsolete layer z-index tokens remain');
-if(!appCss.includes('#market-cards-layer{--up:#2ee6a6;position:fixed;z-index:var(--z-layer-scroll);isolation:isolate;'))fail('Scroll container stacking context is not isolated above K-line');
+if(!appCss.includes('#market-cards-layer{--up:#2ee6a6;position:fixed;z-index:var(--z-layer-scroll);')||!appCss.includes('#market-cards-layer .mc-columns{position:absolute;inset:0 auto 0 0;width:min(100vw,380px);min-width:0;min-height:0;overflow:visible;pointer-events:none;')||!appCss.includes('#market-cards-layer .mc-side{position:relative;z-index:2;'))fail('Only the real card scroll viewport may receive pointer/touch input above K-line');
 const html=read('index.html');
 const klinePos=html.indexOf('id="vegas-right-scroll"');
 const scrollPos=html.indexOf('id="market-cards-layer"');
 const tickerPos=html.indexOf('id="vegas-signal-ticker"');
 if(!(klinePos>=0&&scrollPos>klinePos&&tickerPos>scrollPos))fail('DOM layer order must be K-line, scroll container/cards, then ticker');
-if(!html.includes('app.css?v=scroll-layer-stack-2'))fail('Scroll layer cache version missing');
+if(!html.includes('app.css?v=layer-hit-test-rebuild-1')||!html.includes('right-signal-scroll.css?v=layer-hit-test-rebuild-1'))fail('Layer hit-test cache version missing');
 for(const p of ['assets/js/signals/v9-events.js','assets/js/core/market-universe.js','assets/js/core/market-data.js','assets/js/cards/card-view.js','assets/js/scroll/scroll-engine.js','assets/js/cards/card-system.js','assets/js/kline/kline-data.js'])if(!html.includes(p))fail('Entry point missing '+p);
 if(!html.includes("chart.src='./assets/js/kline/kline-chart.js")||!html.includes("app.src='./assets/js/kline/kline-controller.js"))fail('Dynamic K-line loader missing');
 const signalReader=read('assets/js/signals/v9-events.js');
