@@ -30,6 +30,8 @@ const chartEngine=read('assets/js/kline/kline-chart.js');
 if(!chartEngine.includes('const viewport={visibleBars:90,rightGap:3}'))fail('Canonical K-line viewport model missing');
 if(chartEngine.includes('subscribeVisibleLogicalRangeChange'))fail('Legacy chart-range feedback loop remains');
 if(!chartEngine.includes('requestAnimationFrame')||!chartEngine.includes('vr-gesture-start')||!chartEngine.includes('vr-gesture-end'))fail('RAF gesture lifecycle contract missing');
+if(!chartEngine.includes('const appliedRanges=new WeakMap()')||!chartEngine.includes('appliedRanges.get(view)||currentRange(view)'))fail('K-line gesture frame range cache missing');
+if(!chartEngine.includes('rectWidth:rect.width')||chartEngine.includes('const center=(p[0].x+p[1].x)/2,rect=g.view.gesture.getBoundingClientRect()'))fail('Pinch gesture layout measurement cache missing');
 if(!controller.includes("root.addEventListener('vr-gesture-start',pause)")||!controller.includes("root.addEventListener('vr-gesture-end',resume)"))fail('K-line rotation is not coordinated with the unified gesture lifecycle');
 const appCss=read('assets/css/app.css');
 if(!appCss.includes('--z-layer-kline:10;--z-layer-between:20;--z-layer-scroll:30;--z-layer-ticker:50'))fail('Explicit K-line < reserved middle layer < scroll/cards < ticker stacking order missing');
