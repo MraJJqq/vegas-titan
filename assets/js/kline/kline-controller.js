@@ -66,9 +66,14 @@ async function loadLayer(index,symbol,timeframe){
   if(index===active&&symbol===current())updateHeader(symbol,first);
   if(first.length<1200){
    data.complete(symbol,timeframe,first).then(rows=>{
-    if(view.requestId!==requestId||view.symbol!==symbol||view.period!==timeframe)return;
-    if(state==='transitioning'||state==='paused'||state==='preparing'){view.pendingRows=rows;return;}
+    if(view.requestId!==requestId)return;
+    const targetSymbol=view.pendingSymbol||view.symbol,targetPeriod=view.pendingPeriod||view.period;
+    if(targetSymbol!==symbol||targetPeriod!==timeframe)return;
+    if(state==='transitioning'||state==='paused'||state==='preparing'){
+     view.pendingRows=rows;view.pendingSymbol=symbol;view.pendingPeriod=timeframe;return;
+    }
     chart.setData(index,rows,symbol,timeframe,true);
+    view.symbol=symbol;view.period=timeframe;view.hasData=true;view.dataAt=Date.now();
     if(index===active&&symbol===current())updateHeader(symbol,rows);
    }).catch(exception=>{
     if(index===active&&symbol===current()){error.textContent='历史数据补齐失败 · '+String(exception.message||exception).slice(0,42);error.hidden=false;}
@@ -167,17 +172,21 @@ function changePeriod(value){
  if(!data.periods.includes(value)||value===period)return;
  const symbol=current();if(!symbol)return;
  chart.capture(views[active]);period=value;periodSettings[symbol]=value;savePeriods();setPeriodButtons();
- ++token;clearTimer();state=manualSymbol?'manual':'paused';
+ ++token;clearTimer();state=manualSymbol?'manual':'preparing';
  loadLayer(active,symbol,value).then(ok=>{
-  if(state==='paused')return;
+  // A period-button tap must not leave the controller in the pointer-pause state.
+  if(state==='paused'||state==='hidden')return;
   if(!ok){state=manualSymbol?'manual':'idle';if(!manualSymbol)scheduleCycle(CLEAR_MS);return;}
   state=manualSymbol?'manual':'idle';
+  applyDeferredRefresh();
   if(manualSymbol)armManualReturn(symbol);else scheduleCycle(CLEAR_MS);
   scheduleRefresh();
  });
 }
 function pause(event){
- if(event?.pointerId!==undefined)activePointers.add(event.pointerId);
+ // Only chart gestures pause the rotation/data pipeline; period buttons and headers do not.
+ if(!event?.target?.closest?.('.vr-gesture-layer'))return;
+ if(event.pointerId!==undefined)activePointers.add(event.pointerId);
  if(state==='paused'||state==='hidden')return;
  ++token;clearTimer();
  const frozen=layers.map(layer=>({opacity:getComputedStyle(layer).opacity,filter:getComputedStyle(layer).filter}));
@@ -230,6 +239,7 @@ function visibility(){
 root.addEventListener('pointerdown',pause,{capture:true,passive:true});
 window.addEventListener('pointerup',resume,{capture:true,passive:true});
 window.addEventListener('pointercancel',resume,{capture:true,passive:true});
+window.addEventListener('lostpointercapture',resume,{capture:true,passive:true});
 window.addEventListener('blur',()=>{if(activePointers.size){activePointers.clear();resume();}},{passive:true});
 document.addEventListener('visibilitychange',visibility,{passive:true});
 window.VegasLayer5ShowSymbol=selectSymbol;
