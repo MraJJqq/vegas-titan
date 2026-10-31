@@ -5,7 +5,7 @@ function mount(root,slots){
  if(!root||!slots?.length)throw Error('Scroll engine requires root and card slots');
  const ordered=slots.slice();
  const state={mode:'auto',raf:0,lastTime:0,autoDelayUntil:performance.now()+250,
-  wheelTarget:root.scrollTop,wheelSpeed:0,touching:false,dragging:false,
+  wheelTarget:root.scrollTop,wheelSpeed:0,touchPending:false,touching:false,dragging:false,
   touchY:0,touchTime:0,touchSpeed:0,lastScroll:root.scrollTop,looping:false};
  let gap=0,stride=0,totalHeight=0,geometryDirty=true,autoFraction=0,lastFocusRange='';
  let alive=true,lastErrorAt=0;
@@ -127,13 +127,16 @@ function mount(root,slots){
  }
  function onTouchStart(event){
   const touch=event.touches[0];if(!touch)return;
-  state.touching=true;state.dragging=false;state.mode='touch';state.touchY=touch.clientY;
-  state.touchTime=performance.now();state.touchSpeed=0;cancelFrame();
+  state.touchPending=true;state.touching=false;state.dragging=false;
+  state.touchY=touch.clientY;state.touchTime=performance.now();state.touchSpeed=0;
  }
  function onTouchMove(event){
-  const touch=event.touches[0];if(!touch||!state.touching)return;
+  const touch=event.touches[0];if(!touch||(!state.touchPending&&!state.touching))return;
   const now=performance.now(),delta=state.touchY-touch.clientY,elapsed=Math.max(1,now-state.touchTime);
   if(!state.dragging&&Math.abs(touch.clientY-state.touchY)<8)return;
+  if(!state.dragging){
+   state.touchPending=false;state.touching=true;state.mode='touch';cancelFrame();
+  }
   state.dragging=true;event.preventDefault();
   if(Math.abs(delta)>.05){
    move(delta,Math.sign(delta));
@@ -142,6 +145,7 @@ function mount(root,slots){
   state.touchY=touch.clientY;state.touchTime=now;requestFrame();
  }
  function endTouch(cancelled){
+  if(state.touchPending){state.touchPending=false;return;}
   if(!state.touching)return;
   state.touching=false;state.dragging=false;
   if(!cancelled&&Math.abs(state.touchSpeed)>.035){
@@ -151,10 +155,11 @@ function mount(root,slots){
  function onTouchEnd(){endTouch(false);}
  function onTouchCancel(){endTouch(true);}
  function resetTouch(){
+  if(state.touchPending){state.touchPending=false;return;}
   if(state.touching)endTouch(true);
   else{state.mode='auto';state.wheelSpeed=state.touchSpeed=0;state.autoDelayUntil=performance.now()+250;requestFrame();}
  }
- function onPageHide(){cancelFrame();state.touching=false;state.dragging=false;state.mode='auto';}
+ function onPageHide(){cancelFrame();state.touchPending=false;state.touching=false;state.dragging=false;state.mode='auto';}
  function onWindowBlur(){resetTouch();}
  function onScroll(){
   if(state.looping)return;
@@ -168,7 +173,7 @@ function mount(root,slots){
   requestFrame();
  }
  function onVisibility(){
-  if(document.hidden){cancelFrame();state.mode='auto';state.touching=false;state.dragging=false;state.touchSpeed=state.wheelSpeed=0;state.lastScroll=root.scrollTop;}
+  if(document.hidden){cancelFrame();state.mode='auto';state.touchPending=false;state.touching=false;state.dragging=false;state.touchSpeed=state.wheelSpeed=0;state.lastScroll=root.scrollTop;}
   else{state.autoDelayUntil=performance.now()+250;state.lastScroll=root.scrollTop;requestFrame();}
  }
  function onResize(){geometryDirty=true;lastFocusRange='';requestFrame();}
