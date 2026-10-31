@@ -120,25 +120,36 @@ function mergeRows(symbol,period,oldRows,incoming){
  if(rows.length>WARMUP_BARS+1000)rows.splice(0,rows.length-(WARMUP_BARS+1000));
  updateIndicators(symbol,oldRows,rows);return rows;
 }
-async function latest(symbol,period){
- if(period!==PERIOD)throw Error('Only 4H candles are enabled');
- const key=keyFor(symbol,period);await ensureCached(symbol,period);
- const cached=cache.get(key);
- if(cached&&Date.now()-cached.at<20000)return cached.rows;
+async function refreshLatest(symbol,period,key){
  if(inflight.has(key))return inflight.get(key);
  const promise=(async()=>{
-  const ctx=await context(symbol,period),params={...ctx.latestParams};params.limit=cached&&cached.rows.length?'10':'1000';
+  const cached=cache.get(key);
+  const ctx=await context(symbol,period),params={...ctx.latestParams};
+  params.limit=cached&&cached.rows.length?'10':'1000';
   const incoming=normalize(await request(ctx.latest+'?'+new URLSearchParams(params)));
   if(!incoming.length)throw Error('No valid candles for '+symbol);
-  const oldEntry=cache.get(key),oldRows=oldEntry?.rows||[],missingIndicators=[12,36,43,144,169,576,676].some(n=>!emaCache.has(symbol+'|'+PERIOD+'|'+n));
+  const oldEntry=cache.get(key),oldRows=oldEntry?.rows||[];
+  const missingIndicators=[12,36,43,144,169,576,676].some(n=>!emaCache.has(symbol+'|'+PERIOD+'|'+n));
   const rows=mergeRows(symbol,period,oldRows,incoming);
   const changed=rows.length!==oldRows.length||rows.some((row,i)=>!sameCandle(row,oldRows[i]));
   cache.set(key,{rows,at:Date.now(),historyChecked:!!oldEntry?.historyChecked});
   if(changed||!oldRows.length||missingIndicators)persist(symbol,rows);
   while(cache.size>90)cache.delete(cache.keys().next().value);
+  if(changed&&typeof window!=='undefined')window.dispatchEvent(new CustomEvent('vegas-kline-data-updated',{detail:{symbol,period,rows}}));
   return rows;
  })();
  inflight.set(key,promise);try{return await promise;}finally{if(inflight.get(key)===promise)inflight.delete(key);}
+}
+async function latest(symbol,period){
+ if(period!==PERIOD)throw Error('Only 4H candles are enabled');
+ const key=keyFor(symbol,period);
+ await ensureCached(symbol,period);
+ const cached=cache.get(key);
+ if(cached&&cached.rows.length){
+  if(Date.now()-cached.at>=20000)refreshLatest(symbol,period,key).catch(()=>{});
+  return cached.rows;
+ }
+ return refreshLatest(symbol,period,key);
 }
 async function history(symbol,period,firstRows){
  if(period!==PERIOD)throw Error('Only 4H history is enabled');
