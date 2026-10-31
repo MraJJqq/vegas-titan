@@ -30,7 +30,6 @@ let queue=[];
 let currentIndex=0;
 let active=0;
 let mode='hidden';
-let autoPhase='hold';
 let autoTimer=0;
 let autoTimerCallback=null;
 let autoTimerDueAt=0;
@@ -39,7 +38,6 @@ let pausedAutoTimer=null;
 let manualTimer=0;
 let refreshTimer=0;
 let autoDueAt=0;
-let transitionTarget=-1;
 let autoSnapshot=null;
 let manualSymbol='';
 let manualDeadline=0;
@@ -249,7 +247,6 @@ function beginTransition(symbol,duration,kind,id,onComplete){
 function scheduleAutoHold(delay){
  clearAutoTimer();
  if(document.hidden||manualSymbol||queue.length<2||mode==='hidden')return;
- autoPhase='hold';
  autoDueAt=Date.now()+Math.max(0,delay);
  mode='auto-hold';
  armAutoTimer(()=>{
@@ -261,8 +258,6 @@ function startAutoTransition(duration){
  if(document.hidden||manualSymbol||queue.length<2)return;
  clearAutoTimer();
  const nextIndex=(currentIndex+1)%queue.length;
- transitionTarget=nextIndex;
- autoPhase='transition';
  autoDueAt=Date.now()+Math.max(0,duration);
  const id=++generation;
  beginTransition(queue[nextIndex],duration,'transitioning',id,ok=>{
@@ -272,7 +267,6 @@ function startAutoTransition(duration){
    return;
   }
   currentIndex=nextIndex;
-  transitionTarget=-1;
   preloadNext();
   scheduleAutoHold(HOLD_MS);
  });
@@ -290,7 +284,7 @@ function captureAutoProgress(){
   return{phase:'hold',remaining:Math.max(0,autoDueAt-Date.now()),index:currentIndex};
  }
  if(mode==='transitioning'){
-  return{phase:'transition',remaining:autoTimer?Math.max(0,autoDueAt-Date.now()):TRANSITION_MS,index:currentIndex,target:transitionTarget};
+  return{phase:'transition',remaining:autoTimer?Math.max(0,autoDueAt-Date.now()):TRANSITION_MS,index:currentIndex};
  }
  if(mode==='revealing'){
   return{phase:'hold',remaining:INITIAL_HOLD_MS,index:currentIndex};
@@ -324,7 +318,6 @@ function restoreAuto(){
   setLayerStyles(active,false,0);
   updateHeader(source,views[active].rows);
   if(saved.phase==='transition'&&queue.length>1){
-   const targetIndex=(currentIndex+1)%queue.length;
    startAutoTransition(Math.max(0,saved.remaining));
   }else{
    mode='idle';
@@ -422,7 +415,6 @@ function setQueue(values){
  if(autoSnapshot)autoSnapshot.index=currentIndex;
  if(!queue.length&&!manualSymbol){hide();return;}
  if(manualSymbol){
-  if(autoSnapshot&&autoSnapshot.phase==='transition')autoSnapshot.target=(currentIndex+1)%queue.length;
   return;
  }
  ++generation;
