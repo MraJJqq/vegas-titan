@@ -37,6 +37,9 @@ if(!scrollEngine.includes('event.touches.length!==1')||!scrollEngine.includes('e
 if(!scrollEngine.includes("state.mode==='handoff'")||!scrollEngine.includes('handoffStartSpeed')||!scrollEngine.includes('state.handoffDuration'))fail('Manual-to-auto card scrolling must use a continuous velocity handoff');
 if(scrollEngine.includes('--mc-depth-blur'))fail('Unused card depth-blur state remains in scroll engine');
 if(controller.includes('autoPhase')||controller.includes('targetIndex')||controller.includes('transitionTarget'))fail('Unused K-line controller state remains');
+if(!scrollEngine.includes('function resumeAfterSelection()')||!scrollEngine.includes('return{refresh:onResize,resumeAfterSelection,destroy(){'))fail('Scroll engine must expose the card-selection auto-resume contract');
+if(!card.includes('scroll?.resumeAfterSelection()'))fail('Card selection must clear stale gesture state and resume auto-scroll');
+if(!scrollEngine.includes("if(state.mode==='auto'&&!state.raf&&!state.timer)requestFrame()"))fail('Repeated card selections must not restart the auto-scroll delay');
 if(!scrollEngine.includes("state.timer=setTimeout(schedule,33)")||!scrollEngine.includes("state.mode==='touch')return")||!scrollEngine.includes('focus();'))fail('Adaptive scroll scheduler or direct touch-frame rendering missing');
 if(!view.includes('const chartOwners=new WeakMap()'))fail('Card canvas resize lookup optimization missing');
 if(!view.includes('if(candlesChanged&&item.candles.length&&isVisible(item))draw(item)')||!view.includes("root.removeEventListener('mc-slot-visibility',onSlotVisibility)"))fail('Offscreen mini-chart rendering optimization or shared visibility lifecycle missing');
