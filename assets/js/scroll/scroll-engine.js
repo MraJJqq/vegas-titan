@@ -5,7 +5,7 @@ function mount(root,slots){
  if(!root||!slots?.length)throw Error('Scroll engine requires root and card slots');
  const ordered=slots.slice();
  const state={mode:'auto',raf:0,timer:0,lastTime:0,autoDelayUntil:performance.now()+250,
-  wheelTarget:root.scrollTop,wheelSpeed:0,touchPending:false,touching:false,dragging:false,
+  wheelTarget:root.scrollTop,wheelSpeed:0,touchPending:false,touching:false,
   touchY:0,touchTime:0,touchSpeed:0,handoffStartSpeed:0,handoffStartTime:0,handoffDuration:700,lastScroll:root.scrollTop,looping:false};
  let gap=0,slotHeight=0,stride=0,totalHeight=0,geometryDirty=true,autoFraction=0,lastFocusRange='';
  let alive=true,lastErrorAt=0;
@@ -85,7 +85,7 @@ function mount(root,slots){
  }
  function recover(error){
   const now=performance.now();
-  state.raf=0;state.mode='auto';state.touching=false;state.dragging=false;
+  state.raf=0;state.mode='auto';state.touching=false;
   state.looping=false;state.touchSpeed=state.wheelSpeed=0;
   state.wheelTarget=root.scrollTop;state.lastScroll=root.scrollTop;
   state.lastTime=0;state.autoDelayUntil=now+500;geometryDirty=true;lastFocusRange='';
@@ -140,7 +140,7 @@ function mount(root,slots){
    return;
   }
   const touch=event.touches[0];if(!touch)return;
-  state.touchPending=true;state.touching=false;state.dragging=false;
+  state.touchPending=true;state.touching=false;
   state.touchY=touch.clientY;state.touchTime=performance.now();state.touchSpeed=0;
  }
  function onTouchMove(event){
@@ -151,11 +151,11 @@ function mount(root,slots){
   }
   const touch=event.touches[0];if(!touch||(!state.touchPending&&!state.touching))return;
   const now=performance.now(),delta=state.touchY-touch.clientY,elapsed=Math.max(1,now-state.touchTime);
-  if(!state.dragging&&Math.abs(touch.clientY-state.touchY)<8)return;
-  if(!state.dragging){
+  if(!state.touching&&Math.abs(touch.clientY-state.touchY)<8)return;
+  if(!state.touching){
    state.touchPending=false;state.touching=true;state.mode='touch';cancelFrame();
   }
-  state.dragging=true;event.preventDefault();
+  event.preventDefault();
   if(Math.abs(delta)>.05){
    move(delta,Math.sign(delta));
    state.touchSpeed=clamp(state.touchSpeed*.35+clamp(delta/elapsed,-3.6,3.6)*.65,-3.6,3.6);
@@ -166,7 +166,7 @@ function mount(root,slots){
  function endTouch(cancelled){
   if(state.touchPending){state.touchPending=false;return;}
   if(!state.touching)return;
-  state.touching=false;state.dragging=false;
+  state.touching=false;
   if(!cancelled){
    state.handoffStartSpeed=clamp(state.touchSpeed*1.25,-3.6,3.6);
    state.handoffStartTime=performance.now();
@@ -186,8 +186,8 @@ function mount(root,slots){
   // A card tap is not a scroll gesture. Clear stale touch state without
   // restarting the auto timer on every rapid selection.
   state.touchPending=false;
-  if(state.mode==='touch'||state.mode==='wheel'||state.touching||state.dragging){
-   state.touching=false;state.dragging=false;
+  if(state.mode==='touch'||state.mode==='wheel'||state.touching){
+   state.touching=false;
    state.touchSpeed=state.wheelSpeed=0;
    state.wheelTarget=root.scrollTop;
    state.mode='auto';
@@ -199,7 +199,7 @@ function mount(root,slots){
   }
   if(state.mode==='auto'&&!state.raf&&!state.timer)requestFrame();
  }
- function onPageHide(){cancelFrame();state.touchPending=false;state.touching=false;state.dragging=false;state.mode='auto';}
+ function onPageHide(){cancelFrame();state.touchPending=false;state.touching=false;state.mode='auto';}
  function onWindowBlur(){resetTouch();}
  function onScroll(){
   if(state.looping)return;
@@ -213,7 +213,7 @@ function mount(root,slots){
   requestFrame();
  }
  function onVisibility(){
-  if(document.hidden){cancelFrame();state.mode='auto';state.touchPending=false;state.touching=false;state.dragging=false;state.touchSpeed=state.wheelSpeed=0;state.lastScroll=root.scrollTop;}
+  if(document.hidden){cancelFrame();state.mode='auto';state.touchPending=false;state.touching=false;state.touchSpeed=state.wheelSpeed=0;state.lastScroll=root.scrollTop;}
   else{state.autoDelayUntil=performance.now()+250;state.lastScroll=root.scrollTop;requestFrame();}
  }
  function onResize(){geometryDirty=true;lastFocusRange='';requestFrame();}
@@ -240,7 +240,7 @@ function mount(root,slots){
  },{root,threshold:.01}):null;
  ordered.forEach(node=>intersection?intersection.observe(node):node.classList.add('mc-in-view'));
  measure();focus();requestFrame();
- return{refresh:onResize,resumeAfterSelection,destroy(){
+ return{resumeAfterSelection,destroy(){
   alive=false;cancelFrame();observer?.disconnect();intersection?.disconnect();
   root.removeEventListener('wheel',onWheel);root.removeEventListener('scroll',onScroll);
   root.removeEventListener('touchstart',onTouchStart);root.removeEventListener('touchmove',onTouchMove);
