@@ -153,8 +153,8 @@ async function history(symbol,period,firstRows){
   const seed=cachedRows.length>firstRows.length?cachedRows:firstRows;
   const ctx=await context(symbol,period),all=new Map(seed.map(row=>[row.time,row]));
   let oldest=Math.min(...all.keys()),endTime=oldest*1000-1,reachedHistoryStart=false;
-  const maxPages=10000; let paginationStopped=false;
-  for(let page=0;page<maxPages;page++){
+  let paginationStopped=false;
+  while(true){
    const params={...ctx.historyParams,endTime:String(endTime)},rows=normalize(await request(ctx.history+'?'+new URLSearchParams(params)));
    if(!rows.length){reachedHistoryStart=true;break;}
    let added=0;rows.forEach(row=>{if(!all.has(row.time)){all.set(row.time,row);added++;}});
