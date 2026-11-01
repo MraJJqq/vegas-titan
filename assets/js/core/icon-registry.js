@@ -48,7 +48,6 @@ function warm(){
    const img=new Image();
    img.decoding='async';
    img.src=base+file;
-   warmed.set(file,img);
    if(typeof img.decode==='function')img.decode().catch(()=>{});
    count++;
   }
