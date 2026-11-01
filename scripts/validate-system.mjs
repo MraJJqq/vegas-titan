@@ -58,8 +58,9 @@ if(!(klinePos>=0&&scrollPos>klinePos&&tickerPos>scrollPos))fail('DOM layer order
 if(!html.includes('app.css?v=card-glass-backdrop-fix-1')||!html.includes('right-signal-scroll.css?v=floating-logo-upper-1'))fail('Card glass backdrop or layer hit-test cache version missing');
 if(!kline.includes("productType:'USDT-FUTURES'")||kline.includes("category:'SPOT'")||kline.includes("stock-info"))fail('K-line data source must use Bitget USDT Futures only');
 if(!controller.includes("manualPausedRemaining")||!controller.includes("manualDeadline=Date.now()+remaining"))fail('Manual K-line timer background pause/resume missing');
-if(!controller.includes("completeHistory:false")||!controller.includes("view.historyComplete&&Date.now()-view.dataAt<15000"))fail('Staged next-symbol history prewarm missing');
-if(!html.includes('market-data.js?v=visible-ticker-index-2')||!html.includes('card-view.js?v=card-render-guard-2')||!html.includes('kline-data.js?v=futures-prewarm-4')||!html.includes('kline-chart.js?v=chart-options-cache-2')||!html.includes('kline-controller.js?v=central-logo-registry-1'))fail('Optimized runtime module cache versions missing');
+if(controller.includes("loadLayer(1-active,queue[index],{completeHistory:false})"))fail('Next-symbol prewarm must complete 4H history for red-peak EMA warmup');
+if(!controller.includes('function preloadNext()')||!controller.includes('loadLayer(1-active,queue[index]);'))fail('Full-history next-symbol prewarm missing');
+if(!html.includes('market-data.js?v=visible-ticker-index-2')||!html.includes('card-view.js?v=card-render-guard-2')||!html.includes('kline-data.js?v=futures-prewarm-4')||!html.includes('kline-chart.js?v=chart-options-cache-2')||!html.includes('kline-controller.js?v=redpeak-prewarm-2'))fail('Optimized runtime module cache versions missing');
 for(const p of ['assets/js/signals/v9-events.js','assets/js/core/market-universe.js','assets/js/core/market-data.js','assets/js/cards/card-view.js','assets/js/scroll/scroll-engine.js','assets/js/cards/card-system.js','assets/js/kline/kline-data.js'])if(!html.includes(p))fail('Entry point missing '+p);
 if(!html.includes("chart.src='./assets/js/kline/kline-chart.js")||!html.includes("app.src='./assets/js/kline/kline-controller.js"))fail('Dynamic K-line loader missing');
 const signalReader=read('assets/js/signals/v9-events.js');
