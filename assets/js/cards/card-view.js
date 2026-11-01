@@ -52,44 +52,19 @@ function mount(root,instruments,onSelect){
   const card=target instanceof Element?target.closest('.mc-card[data-symbol]'):null;
   return card&&root.contains(card)?card:null;
  }
- // One activation path only. Native click is generated for a completed tap on iPad Safari;
- // relying on pointerup plus click caused the first tap to be consumed by duplicate handling.
- // A moving card may no longer sit under the pointer on release. Keep the
- // press-origin card as the activation target, and suppress the follow-up
- // synthesized mouse click so it cannot activate a different card.
- let mousePress=null,mouseClickSuppressionUntil=0;
+ // One activation path for mouse, pen and touch: native click only.
+ // Pointer down/up must never select a card; mixing both paths makes the
+ // first click vulnerable to duplicate suppression and lost pointer-up events.
  function onClick(event){
-  if(event.detail>0&&Date.now()<mouseClickSuppressionUntil){
-   event.preventDefault();event.stopImmediatePropagation();return;
-  }
   const path=typeof event.composedPath==='function'?event.composedPath():[];
   const target=path.find(node=>node instanceof Element&&node.matches('.mc-card[data-symbol]'))||event.target;
   const card=cardFrom(target);if(!card)return;
-  if(card.dataset.lastActivation&&Date.now()-Number(card.dataset.lastActivation)<350)return;
-  card.dataset.lastActivation=String(Date.now());
   select(card.dataset.symbol);
  }
- // Mouse activation follows the card grabbed on pointerdown. Touch and pen
- // continue through the native click path.
- function onMouseDown(event){
-  if(event.pointerType!=='mouse'||event.button!==0)return;
-  const card=cardFrom(event.target);
-  mousePress=card?{card,id:event.pointerId,x:event.clientX,y:event.clientY}:null;
+ function cardFrom(target){
+  const card=target instanceof Element?target.closest('.mc-card[data-symbol]'):null;
+  return card&&root.contains(card)?card:null;
  }
- function onPointerCancel(){mousePress=null;}
- function onMouseUp(event){
-  if(event.pointerType!=='mouse'||!mousePress||event.pointerId!==mousePress.id)return;
-  const press=mousePress;mousePress=null;
-  if(!press.card.isConnected||Math.hypot(event.clientX-press.x,event.clientY-press.y)>8)return;
-  const now=Date.now(),last=Number(press.card.dataset.lastActivation||0);
-  mouseClickSuppressionUntil=now+500;
-  if(now-last<350)return;
-  press.card.dataset.lastActivation=String(now);
-  select(press.card.dataset.symbol);
- }
- root.addEventListener('pointerdown',onMouseDown,true);
- root.addEventListener('pointerup',onMouseUp,true);
- root.addEventListener('pointercancel',onPointerCancel,true);
  root.addEventListener('click',onClick,true);
  let pointerRaf=0,pointerEvent=null;
  function onPointerMove(event){
@@ -150,7 +125,6 @@ function mount(root,instruments,onSelect){
  function destroy(){
   resizeObserver?.disconnect();root.removeEventListener('mc-slot-visibility',onSlotVisibility);
   root.removeEventListener('click',onClick,true);
-  root.removeEventListener('pointerdown',onMouseDown,true);root.removeEventListener('pointerup',onMouseUp,true);root.removeEventListener('pointercancel',onPointerCancel,true);
   root.removeEventListener('pointermove',onPointerMove);root.removeEventListener('pointerout',resetTilt);
   ['pointerleave','pointerup','pointercancel'].forEach(type=>root.removeEventListener(type,resetTilt));
   if(pointerRaf)cancelAnimationFrame(pointerRaf);
