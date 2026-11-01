@@ -1,11 +1,10 @@
-/* Layer 5 Bitget 4H candle engine. IndexedDB persistence + incremental EMA cache. */
+/* Layer 5 Bitget USDT-Futures 4H candle engine. IndexedDB persistence + incremental EMA cache. */
 (function(){
 'use strict';
 const API='https://api.bitget.com',WARMUP_BARS=4000,PERIOD='4H';
-const STOCKS=new Set(['AAPL','MSFT','GOOGL','AMZN','NVDA','TSLA','META','INTC','QCOM','AMD','TSM','AVGO','ORCL','ARM','MU','ASML','SNDK','SKHYNIX','MRVL','GLW','HOOD','CBRS','SPCX']);
 const DB_NAME='vegas-titan-kline-cache',DB_VERSION=1,STORE='series',MAX_RECORDS=36;
 const cache=new Map(),inflight=new Map(),backfills=new Map(),emaCache=new Map();
-let dbPromise=null,stockMapPromise=null;
+let dbPromise=null;
 function openDB(){
  if(!('indexedDB'in window))return Promise.resolve(null);
  if(dbPromise)return dbPromise;
@@ -71,26 +70,21 @@ async function request(path){
  try{const response=await fetch(API+path,{cache:'no-store',signal:controller.signal});if(!response.ok)throw Error('Bitget HTTP '+response.status);const json=await response.json();if(json.code!=='00000'||!Array.isArray(json.data))throw Error(json.msg||'Bitget response invalid');return json.data;}
  finally{clearTimeout(timer);}
 }
-async function stockMap(){
- if(typeof window.VegasGetRealityStockMap==='function')return window.VegasGetRealityStockMap();
- if(!stockMapPromise)stockMapPromise=request('/api/v3/reality/market/stock-info').then(rows=>{
-  const map=new Map(rows.filter(x=>x?.code&&x?.symbol).map(x=>[String(x.code).toUpperCase(),String(x.symbol)]));
-  const special=rows.find(x=>x?.symbol&&(/SKHYNIX/i.test(String(x.code||''))||/SK\s*HYNIX/i.test(String(x.name||''))||/RSKHYUSDT/i.test(String(x.symbol||''))));
-  if(special)map.set('SKHYNIX',String(special.symbol));return map;
- }).catch(error=>{stockMapPromise=null;throw error;});
- return stockMapPromise;
-}
 function normalize(rows){
  return rows.filter(row=>Array.isArray(row)&&row.slice(0,5).every(v=>Number.isFinite(+v)&&+v>0))
  .map(row=>({time:Math.floor(+row[0]/1000),open:+row[1],high:+row[2],low:+row[3],close:+row[4]}))
  .filter(row=>row.time>0&&row.high>=Math.max(row.open,row.close)&&row.low<=Math.min(row.open,row.close));
 }
 async function context(symbol,period){
- if(period!==PERIOD)throw Error('Vegas K-line cache only supports 4H');
- const spot=STOCKS.has(symbol),mapped=spot?(await stockMap()).get(symbol):null;
- if(spot&&!mapped)throw Error('Bitget stock mapping unavailable: '+symbol);
- return spot?{latest:'/api/v3/market/candles',history:'/api/v3/market/history-candles',latestParams:{category:'SPOT',symbol:mapped,interval:PERIOD,limit:'1000'},historyParams:{category:'SPOT',symbol:mapped,interval:PERIOD,limit:'100'},pageLimit:100}:
- {latest:'/api/v2/mix/market/candles',history:'/api/v2/mix/market/history-candles',latestParams:{symbol:symbol+'USDT',productType:'USDT-FUTURES',granularity:PERIOD,limit:'1000'},historyParams:{symbol:symbol+'USDT',productType:'USDT-FUTURES',granularity:PERIOD,limit:'200'},pageLimit:200};
+ if(period!==PERIOD)throw Error('Bitget K-line only supports 4H');
+ const contract=String(symbol||'').toUpperCase().replace(/USDT$/,'')+'USDT';
+ return{
+  latest:'/api/v2/mix/market/candles',
+  history:'/api/v2/mix/market/history-candles',
+  latestParams:{symbol:contract,productType:'USDT-FUTURES',granularity:PERIOD,limit:'1000'},
+  historyParams:{symbol:contract,productType:'USDT-FUTURES',granularity:PERIOD,limit:'200'},
+  pageLimit:200
+ };
 }
 function sameCandle(a,b){return !!a&&!!b&&a.time===b.time&&a.open===b.open&&a.high===b.high&&a.low===b.low&&a.close===b.close;}
 function updateIndicators(symbol,oldRows,newRows){
