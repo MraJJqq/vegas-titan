@@ -136,7 +136,7 @@ function mount(root,slots){
   const now=performance.now(),delta=state.touchY-touch.clientY,elapsed=Math.max(1,now-state.touchTime);
   if(!state.dragging&&Math.abs(touch.clientY-state.touchY)<8)return;
   if(!state.dragging){
-   state.touchPending=false;state.touching=true;state.mode='touch';cancelFrame();
+   state.touchPending=false;state.touching=true;state.mode='touch';root.classList.add('mc-is-touching');cancelFrame();
   }
   state.dragging=true;event.preventDefault();
   if(Math.abs(delta)>.05){
@@ -149,7 +149,7 @@ function mount(root,slots){
  function endTouch(cancelled){
   if(state.touchPending){state.touchPending=false;return;}
   if(!state.touching)return;
-  state.touching=false;state.dragging=false;
+  state.touching=false;state.dragging=false;root.classList.remove('mc-is-touching');
   if(!cancelled&&Math.abs(state.touchSpeed)>.035){
    state.touchSpeed=clamp(state.touchSpeed*1.25,-3.6,3.6);state.mode='inertia';requestFrame();
   }else{state.touchSpeed=0;state.mode='auto';state.autoDelayUntil=performance.now()+1400;requestFrame();}
@@ -161,7 +161,7 @@ function mount(root,slots){
   if(state.touching)endTouch(true);
   else{state.mode='auto';state.wheelSpeed=state.touchSpeed=0;state.autoDelayUntil=performance.now()+250;requestFrame();}
  }
- function onPageHide(){cancelFrame();state.touchPending=false;state.touching=false;state.dragging=false;state.mode='auto';}
+ function onPageHide(){cancelFrame();state.touchPending=false;state.touching=false;state.dragging=false;root.classList.remove('mc-is-touching');state.mode='auto';}
  function onWindowBlur(){resetTouch();}
  function onScroll(){
   if(state.looping)return;
@@ -175,7 +175,7 @@ function mount(root,slots){
   requestFrame();
  }
  function onVisibility(){
-  if(document.hidden){cancelFrame();state.mode='auto';state.touchPending=false;state.touching=false;state.dragging=false;state.touchSpeed=state.wheelSpeed=0;state.lastScroll=root.scrollTop;}
+  if(document.hidden){cancelFrame();state.mode='auto';state.touchPending=false;state.touching=false;state.dragging=false;root.classList.remove('mc-is-touching');state.touchSpeed=state.wheelSpeed=0;state.lastScroll=root.scrollTop;}
   else{state.autoDelayUntil=performance.now()+250;state.lastScroll=root.scrollTop;requestFrame();}
  }
  function onResize(){geometryDirty=true;lastFocusRange='';requestFrame();}
