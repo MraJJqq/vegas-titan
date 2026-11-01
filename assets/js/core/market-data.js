@@ -89,8 +89,10 @@ async function refresh(instruments,onUpdate,getVisibleSymbols){
    if(!(price>0&&open>0))return;
    snapshots.set(item.symbol,{...previous,price,open,exchangeSymbol,updatedAt:Date.now()});
   });
-  await refreshMini(instruments,typeof getVisibleSymbols==='function'?getVisibleSymbols():[]);
   if(typeof onUpdate==='function')onUpdate(new Map(snapshots));
+  // Mini-candles are decorative card data; never delay live ticker rendering on them.
+  refreshMini(instruments,typeof getVisibleSymbols==='function'?getVisibleSymbols():[])
+   .catch(error=>console.warn('[Vegas Market Data] mini refresh failed:',error));
  }finally{
   refreshing=false;
  }
