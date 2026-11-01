@@ -17,6 +17,7 @@ function create(root,layers,LWC,getActive){
  }catch{}
  let resizeFrame=0,gestureFrame=0,wheelEndTimer=0,resizePending=false;
  let activeGesture=null,wheelGesture=false,wheelTarget=null,destroyed=false;
+ const pendingData=new Map();
  const views=layers.map(layer=>{
   const host=document.createElement('div');host.className='vr-chart';layer.append(host);
   const gesture=document.createElement('div');gesture.className='vr-gesture-layer';gesture.setAttribute('aria-label','K线视窗手势控制');layer.append(gesture);
@@ -65,6 +66,10 @@ function create(root,layers,LWC,getActive){
  }
  function setData(index,rows,symbol,period){
   const view=views[index];if(!view||!Array.isArray(rows)||!rows.length)return;
+  if(isInteracting()){
+   pendingData.set(index,{rows,symbol,period});
+   return;
+  }
   const sameSymbol=view.symbol===symbol&&view.period==='4H'&&view.rows.length>0;
   const old=view.rows,emaRows=EMA.map(length=>window.VegasKlineData.ema(rows,length,symbol));
   // Follow new candles only while the active viewport is still at the live edge.
@@ -158,6 +163,10 @@ function create(root,layers,LWC,getActive){
   clearTimeout(wheelEndTimer);wheelEndTimer=0;
   activeGesture=null;wheelGesture=false;pendingPoints.clear();
   commit(view);
+  if(pendingData.size){
+   const queued=[...pendingData.entries()];pendingData.clear();
+   queued.forEach(([index,item])=>setData(index,item.rows,item.symbol,item.period));
+  }
   emit('vr-gesture-end',kind);
   if(resizePending)scheduleResize();
  }
