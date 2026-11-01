@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 const jsFiles = [
-'assets/js/signals/v9-events.js','assets/js/core/market-universe.js','assets/js/core/market-data.js',
+'assets/js/signals/v9-events.js','assets/js/core/icon-registry.js','assets/js/core/market-universe.js','assets/js/core/market-data.js',
 'assets/js/cards/card-view.js','assets/js/scroll/scroll-engine.js','assets/js/cards/card-system.js',
 'assets/js/kline/kline-data.js','assets/js/kline/kline-chart.js','assets/js/kline/kline-controller.js',
 'assets/js/signals/bottom-ticker.js'];
@@ -10,6 +10,17 @@ for(const file of jsFiles){const r=spawnSync(process.execPath,['--check',file],{
 const read=p=>fs.readFileSync(p,'utf8');
 const symbols=[...read('assets/js/core/market-universe.js').matchAll(/\['([A-Z]+)','([A-Z0-9]+)'\]/g)];
 if(symbols.length!==27)fail('Expected 27 instruments; found '+symbols.length);
+const iconRegistry=read('assets/js/core/icon-registry.js');
+const iconMap=[...iconRegistry.matchAll(/^\\s*([A-Z0-9]+):'([^']+\\.svg)'/gm)];
+if(iconMap.length!==27)fail('Expected 27 Logo mappings; found '+iconMap.length);
+const iconSymbols=new Set(iconMap.map(match=>match[1]));
+for(const match of symbols){if(!iconSymbols.has(match[1]))fail('Logo mapping missing for '+match[1]);}
+for(const match of iconMap){if(!fs.existsSync('assets/logos/'+match[2]))fail('Logo asset missing: '+match[2]);}
+const cardViewSource=read('assets/js/cards/card-view.js');
+if(!cardViewSource.includes('registry.load(item.symbol)'))fail('Card view must load Logo through the shared registry');
+const controllerSource=read('assets/js/kline/kline-controller.js');
+if(!controllerSource.includes('registry.load(symbol)'))fail('K-line header must load Logo through the shared registry');
+if(iconRegistry.includes('function warm(')||iconRegistry.includes('requestIdleCallback'))fail('Redundant Logo idle-prewarming code remains');
 const market=read('assets/js/core/market-data.js');
 if(!market.includes('/api/v3/market/candles?')||!market.includes('/api/v2/mix/market/candles?'))fail('Bitget spot/Mix endpoints missing');
 if(!market.includes('visibleSymbols')||!market.includes('miniLastAt')||!market.includes('length:2'))fail('Visible-card mini-candle throttling missing');
