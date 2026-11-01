@@ -34,7 +34,6 @@ const files=Object.freeze({
  CL:'crude-oil.svg'
 });
 const base='./assets/logos/';
-let warmStarted=false;
 const loaded=new Map();
 function load(symbol){
  const key=String(symbol||'').toUpperCase();
@@ -50,35 +49,9 @@ function load(symbol){
  loaded.set(key,promise);return promise;
 }
 function get(symbol){const file=files[String(symbol||'').toUpperCase()];return file?base+file:'';}
-function warm(){
- if(warmStarted)return;
- warmStarted=true;
- const queue=Object.values(files);
- let index=0;
- const run=deadline=>{
-  let count=0;
-  while(index<queue.length&&count<4&&(count===0||!deadline||deadline.timeRemaining()>4)){
-   const file=queue[index++];
-   const symbol=Object.keys(files).find(key=>files[key]===file);
-   if(symbol)load(symbol);
-   count++;
-  }
-  if(index<queue.length){
-   if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(run,{timeout:1200});
-   else window.setTimeout(()=>run(null),80);
-  }
- };
- if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(run,{timeout:1200});
- else window.setTimeout(()=>run(null),100);
-}
 window.VegasIconRegistry=Object.freeze({
  get,load,
  has(symbol){return Object.prototype.hasOwnProperty.call(files,String(symbol||'').toUpperCase());},
- symbols(){return Object.keys(files);},
- warm
+ symbols(){return Object.keys(files);}
 });
-if(!window.VegasRuntimeMode?.standalone){
- if(document.readyState==='complete')warm();
- else window.addEventListener('load',warm,{once:true,passive:true});
-}
 })();
