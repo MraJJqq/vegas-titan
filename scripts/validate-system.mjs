@@ -57,17 +57,22 @@ const slotRule=appCss.match(/#market-cards-layer \.mc-slot\{[^}]*\}/)?.[0]||'';
 if(!slotRule||slotRule.includes('filter:'))fail('Card slot must not create a filter backdrop root that blocks K-line glass blur');
 if(!appCss.includes('#market-cards-layer{--up:#2ee6a6;position:fixed;z-index:var(--z-layer-scroll);')||!appCss.includes('#market-cards-layer .mc-columns{position:absolute;inset:0 auto 0 0;width:min(100vw,380px);min-width:0;min-height:0;overflow:visible;pointer-events:none;')||!appCss.includes('#market-cards-layer .mc-side{position:relative;z-index:2;'))fail('Only the real card scroll viewport may receive pointer/touch input above K-line');
 const html=read('index.html');
-if(!html.includes('scroll-engine.js?v=velocity-handoff-1'))fail('Velocity-handoff scroll engine cache version missing');
+const runtimeRefs=[...html.matchAll(/(?:src|href)=[\"']([^\"']+)[\"']/g)].map(match=>match[1]).filter(ref=>ref.startsWith('./assets/'));
+for(const ref of runtimeRefs){const path=ref.split('?')[0].replace(/^\.\//,'');if(!fs.existsSync(path))fail('Referenced runtime asset missing: '+path);}
+if(!runtimeRefs.some(ref=>ref.startsWith('./assets/js/scroll/scroll-engine.js?')))fail('Scroll engine entry reference missing');
 const klinePos=html.indexOf('id="vegas-right-scroll"');
 const scrollPos=html.indexOf('id="market-cards-layer"');
 const tickerPos=html.indexOf('id="vegas-signal-ticker"');
 if(!(klinePos>=0&&scrollPos>klinePos&&tickerPos>scrollPos))fail('DOM layer order must be K-line, scroll container/cards, then ticker');
-if(!html.includes('app.css?v=scroll-opacity-smooth-2')||!html.includes('right-signal-scroll.css?v=floating-logo-upper-1'))fail('Card glass backdrop or layer hit-test cache version missing');
+if(!runtimeRefs.some(ref=>ref.startsWith('./assets/css/app.css?'))||!runtimeRefs.some(ref=>ref.startsWith('./assets/css/right-signal-scroll.css?')))fail('Required card/K-line stylesheets are not referenced');
 if(!kline.includes("productType:'USDT-FUTURES'")||kline.includes("category:'SPOT'")||kline.includes("stock-info"))fail('K-line data source must use Bitget USDT Futures only');
-if(!controller.includes("manualPausedRemaining")||!controller.includes("manualDeadline=Date.now()+remaining"))fail('Manual K-line timer background pause/resume missing');
+if(!controller.includes('const MANUAL_TOTAL_MS=10000;')||!controller.includes('manualDeadline=now+MANUAL_TOTAL_MS;')||!controller.includes('Math.max(0,manualDeadline-Date.now())'))fail('Manual K-line timer must start at click and expire after 10 seconds');
+if(!controller.includes('pausedManualRemaining=Math.max(0,manualDeadline-Date.now())')||!controller.includes('manualDeadline=Date.now()+remaining'))fail('Manual K-line timer gesture pause/resume contract missing');
+if(!controller.includes('manualPausedRemaining=pausedManualRemaining!==null?pausedManualRemaining:Math.max(0,manualDeadline-Date.now())')||!controller.includes('manualDeadline=Date.now()+remaining'))fail('Manual K-line timer background pause/resume contract missing');
+if(!controller.includes('if(id===generation&&manualSymbol===symbol)restoreAuto()'))fail('Stale manual click timer must not restore over a newer card selection');
 if(controller.includes('warmupBars')||controller.includes('红峰历史预热')||controller.includes('预热目标'))fail('K-line controller must not enforce red-peak warmup');
 if(!controller.includes('function preloadNext()')||!controller.includes('loadLayer(1-active,queue[index],{completeHistory:false});')||!controller.includes('function completeHistory('))fail('Next-symbol data preload contract missing');
-if(!html.includes('market-data.js?v=visible-ticker-index-2')||!html.includes('card-view.js?v=card-render-guard-2')||!html.includes('kline-data.js?v=ema-shared-prefix-1')||!html.includes('kline-chart.js?v=chart-options-cache-2')||!html.includes('kline-controller.js?v=preload-history-defer-1'))fail('Optimized runtime module cache versions missing');
+for(const path of ['assets/js/core/market-data.js','assets/js/cards/card-view.js','assets/js/kline/kline-data.js','assets/js/kline/kline-chart.js','assets/js/kline/kline-controller.js']){const base=path.split('/').pop();if(!runtimeRefs.some(ref=>ref.split('?')[0].endsWith('/'+base)))fail('Runtime module reference missing: '+path);}
 for(const p of ['assets/js/signals/v9-events.js','assets/js/core/market-universe.js','assets/js/core/market-data.js','assets/js/cards/card-view.js','assets/js/scroll/scroll-engine.js','assets/js/cards/card-system.js','assets/js/kline/kline-data.js'])if(!html.includes(p))fail('Entry point missing '+p);
 if(!html.includes("chart.src='./assets/js/kline/kline-chart.js")||!html.includes("app.src='./assets/js/kline/kline-controller.js"))fail('Dynamic K-line loader missing');
 const signalReader=read('assets/js/signals/v9-events.js');
