@@ -176,7 +176,7 @@ function onKlineDataUpdated(event){
   view.pendingRows=detail.rows;view.pendingSymbol=symbol;view.pendingPeriod='4H';return;
  }
  chart.setData(index,detail.rows,symbol,'4H');
- view.rows=detail.rows;view.dataAt=Date.now();view.historyComplete=view.historyComplete||false;
+ view.rows=detail.rows;view.dataAt=Date.now();
  if(index===active)syncHeader();
 }
 window.addEventListener('vegas-kline-data-updated',onKlineDataUpdated);
