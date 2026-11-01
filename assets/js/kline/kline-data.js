@@ -49,7 +49,7 @@ function hydrate(key,record){
  if(!record||!Array.isArray(record.rows))return;
  const rows=record.rows.filter(row=>row&&Number.isFinite(row.time)&&Number.isFinite(row.close));
  if(!rows.length)return;
- cache.set(key,{rows,at:0,historyChecked:!!record.historyChecked});
+ cache.set(key,{rows,at:0,historyChecked:!!record.historyChecked&&rows.length>=WARMUP_BARS});
  // EMA arrays are deliberately rebuilt from the candle series.
  // Persisted indicator values may belong to a different/revised candle history.
 
