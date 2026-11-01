@@ -2,14 +2,33 @@
 (function(){
 'use strict';
 const files=Object.freeze({
- AAPL:'apple.svg',MSFT:'microsoft.svg',GOOGL:'google.svg',AMZN:'amazon.svg',
- NVDA:'nvidia.svg',TSLA:'tesla.svg',META:'meta.svg',INTC:'intel.svg',
- QCOM:'qualcomm.svg',AMD:'amd.svg',TSM:'tsmc.svg',AVGO:'broadcom.svg',
- ORCL:'oracle.svg',ARM:'arm.svg',MU:'micron.svg',ASML:'asml.svg',
- SNDK:'sandisk.svg',SKHYNIX:'sk-hynix.svg',MRVL:'marvell.svg',
- GLW:'corning.svg',HOOD:'robinhood.svg',CBRS:'cerence.svg',
- SPCX:'spacex.svg',BTC:'bitcoin.svg',HYPE:'hyperliquid.svg',
- XAU:'gold.svg',CL:'crude-oil.svg'
+ AAPL:'apple.svg',
+ MSFT:'microsoft.svg',
+ GOOGL:'google.svg',
+ AMZN:'amazon.svg',
+ NVDA:'nvidia.svg',
+ TSLA:'tesla.svg',
+ META:'meta.svg',
+ INTC:'intel.svg',
+ QCOM:'qualcomm.svg',
+ AMD:'amd.svg',
+ TSM:'tsmc.svg',
+ AVGO:'broadcom.svg',
+ ORCL:'oracle.svg',
+ ARM:'arm.svg',
+ MU:'micron.svg',
+ ASML:'asml.svg',
+ SNDK:'sandisk.svg',
+ SKHYNIX:'sk-hynix.svg',
+ MRVL:'marvell.svg',
+ GLW:'corning.svg',
+ HOOD:'robinhood.svg',
+ CBRS:'cerence.svg',
+ SPCX:'spacex.svg',
+ BTC:'bitcoin.svg',
+ HYPE:'hyperliquid.svg',
+ XAU:'gold.svg',
+ CL:'crude-oil.svg'
 });
 const base='./assets/logos/';
 const loaded=new Map();
@@ -45,7 +64,7 @@ function load(symbol){
  loaded.set(key,promise);
  return promise;
 }
-function show(element,symbol){
+function show(element,symbol,decodedUrl){
  if(!element)return Promise.resolve(false);
  const key=keyOf(symbol);
  const request=(requests.get(element)||0)+1;
@@ -53,7 +72,8 @@ function show(element,symbol){
  element.classList.remove('is-logo-ready');
  element.style.backgroundImage='none';
  element.dataset.logoSymbol=key;
- return load(key).then(url=>{
+ const ready=typeof decodedUrl==='string'?Promise.resolve(decodedUrl):load(key);
+ return ready.then(url=>{
   if(!url||!element.isConnected||requests.get(element)!==request)return false;
   element.style.backgroundImage='url("'+url+'")';
   element.classList.add('is-logo-ready');
