@@ -43,6 +43,7 @@ let autoDueAt=0;
 let autoSnapshot=null;
 let manualSymbol='';
 let manualDeadline=0;
+let manualPausedRemaining=null;
 let generation=0;
 let initialShown=false;
 let refreshPending=false;
@@ -119,7 +120,7 @@ function syncHeader(){
  if(logoFallback&&!slug){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}
  if(view.rows&&view.rows.length){const target=data.warmupBars||4000;error.hidden=view.rows.length>=target;if(view.rows.length<target)error.textContent=view.historyComplete?'Bitget可获取历史仅'+view.rows.length+'根，未达到红峰预热目标'+target+'根':'红峰历史预热中：'+view.rows.length+'/'+target+'根';}
 }
-function loadLayer(index,symbol){
+function loadLayer(index,symbol,options={}){
  const timeframe='4H';
  if(!symbol)return Promise.resolve(false);
  const view=views[index];
@@ -135,7 +136,7 @@ function loadLayer(index,symbol){
   view.hasData=true;
   view.dataAt=Date.now();
   if(index===active)syncHeader();
-  if(first.length<(data.warmupBars||4000)){
+  if(options.completeHistory!==false&&first.length<(data.warmupBars||4000)){
    data.complete(symbol,timeframe,first).then(rows=>{
     if(view.requestId!==requestId)return;
     if(view.symbol!==symbol||view.period!==timeframe)return;
@@ -300,7 +301,7 @@ function preloadNext(){
  const index=(currentIndex+1)%queue.length;
  const view=views[1-active];
  if(view.symbol===queue[index]&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000)return;
- loadLayer(1-active,queue[index]);
+ loadLayer(1-active,queue[index],{completeHistory:false});
 }
 function captureAutoProgress(){
  if(manualSymbol)return autoSnapshot;
@@ -550,7 +551,10 @@ function onVisibility(){
   if(mode==='auto-hold'||mode==='transitioning'){
    autoSnapshot=captureAutoProgress();
   }
-  if(manualSymbol)manualDeadline=Date.now()+Math.max(0,manualDeadline-Date.now());
+  if(manualSymbol){
+   manualPausedRemaining=pausedManualRemaining!==null?pausedManualRemaining:Math.max(0,manualDeadline-Date.now());
+   manualDeadline=0;
+  }
   ++generation;
   gesturePaused=false;
   clearAutoTimer();
@@ -568,8 +572,10 @@ function onVisibility(){
   if(!ok||id!==generation)return;
   setLayerStyles(active,false,0);
   if(manualSymbol){
+   const remaining=manualPausedRemaining!==null?manualPausedRemaining:Math.max(0,manualDeadline-Date.now());
+   manualPausedRemaining=null;
+   manualDeadline=Date.now()+remaining;
    mode='manual';
-   const remaining=Math.max(0,manualDeadline-Date.now());
    manualTimer=setTimeout(()=>{manualTimer=0;if(id===generation&&manualSymbol)restoreAuto();},remaining);
   }else if(!initialShown){
    beginReveal();
