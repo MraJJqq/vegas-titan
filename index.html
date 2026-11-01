@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="./assets/icons/icon-192.svg">
 <link rel="icon" type="image/svg+xml" href="./assets/icons/icon-192.svg">
 <title>VEGAS TITAN</title>
-<link rel="stylesheet" href="./assets/css/app.css?v=scroll-opacity-smooth-2&icons=1">
+<link rel="stylesheet" href="./assets/css/app.css?v=scroll-opacity-smooth-2&icons=1&standalone-energy-2">
 <link rel="stylesheet" href="./assets/css/right-signal-scroll.css?v=floating-logo-upper-1">
 <link rel="stylesheet" href="./assets/css/bottom-signal-ticker.css?v=cleanup-runtime-1">
 </head>
@@ -44,14 +44,14 @@
   </div>
 </section>
 <div id="vegas-signal-ticker" aria-label="正式信号底部横向滚动播报"><div class="vst-track"><span class="vst-empty">等待正式信号</span></div></div>
-<script src="./assets/js/signals/v9-events.js?v=shuffle-refresh-2"></script>
-<script src="./assets/js/core/icon-registry.js?v=logo-idle-prewarm-1"></script>
+<script src="./assets/js/signals/v9-events.js?v=shuffle-refresh-2&standalone-energy-2"></script>
+<script src="./assets/js/core/icon-registry.js?v=logo-idle-prewarm-1&standalone-energy-2"></script>
 <script src="./assets/js/core/market-universe.js?v=central-icon-registry-1"></script>
-<script src="./assets/js/core/market-data.js?v=visible-ticker-index-2"></script>
+<script src="./assets/js/core/market-data.js?v=visible-ticker-index-2&standalone-energy-2"></script>
 <script src="./assets/js/cards/card-view.js?v=card-render-guard-2&icons=1"></script>
 <script src="./assets/js/scroll/scroll-engine.js?v=velocity-handoff-1"></script>
 <script src="./assets/js/cards/card-system.js?v=v1-core-1"></script>
-<script src="./assets/js/kline/kline-data.js?v=ema-shared-prefix-1"></script>
+<script src="./assets/js/kline/kline-data.js?v=ema-shared-prefix-1&standalone-energy-2"></script>
 <script>
 (function(){
  const sources=[
@@ -61,7 +61,7 @@
  function loadSource(index){
   if(index>=sources.length){console.error('[Vegas Right Scroll] chart library failed to load');return;}
   const script=document.createElement('script');script.src=sources[index];
-  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=chart-options-cache-2';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=preload-history-defer-1';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
+  script.onload=function(){const chart=document.createElement('script');chart.src='./assets/js/kline/kline-chart.js?v=chart-options-cache-2';chart.onload=function(){const app=document.createElement('script');app.src='./assets/js/kline/kline-controller.js?v=preload-history-defer-1&standalone-energy-2';app.onerror=function(){console.error('[Vegas Layer 5] controller failed to load');};document.body.appendChild(app);};chart.onerror=function(){console.error('[Vegas Layer 5] chart engine failed to load');};document.body.appendChild(chart);};
   script.onerror=function(){script.remove();loadSource(index+1);};document.head.appendChild(script);
  }
  loadSource(0);
