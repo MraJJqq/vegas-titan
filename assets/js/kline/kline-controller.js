@@ -120,47 +120,42 @@ function syncHeader(){
  if(logoFallback&&!src){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}
  if(view.rows&&view.rows.length){error.hidden=true;}
 }
+function completeHistory(index,symbol,first,requestId){
+ const view=views[index];
+ if(!view||view.historyComplete||view.historyLoading||!Array.isArray(first)||!first.length)return;
+ view.historyLoading=true;
+ data.complete(symbol,'4H',first).then(rows=>{
+  if(view.requestId!==requestId||view.symbol!==canonicalSymbol(symbol)||view.period!=='4H')return;
+  if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'){
+   view.pendingRows=rows;view.pendingSymbol=symbol;view.pendingPeriod='4H';
+   view.historyComplete=true;
+   return;
+  }
+  chart.setData(index,rows,symbol,'4H');
+  view.rows=rows;view.historyComplete=true;view.dataAt=Date.now();
+  if(index===active)syncHeader();
+ }).catch(exception=>{
+  if(index===active&&symbol===currentSymbol()){
+   error.textContent='历史数据补齐失败 · '+String(exception.message||exception).slice(0,42);
+   error.hidden=false;
+  }
+ }).finally(()=>{view.historyLoading=false;});
+}
 function loadLayer(index,symbol,options={}){
  const timeframe='4H';
  if(!symbol)return Promise.resolve(false);
  const view=views[index];
  const requestId=(view.requestId||0)+1;
  view.requestId=requestId;
+ view.historyLoading=false;
  return data.load(symbol,timeframe).then(first=>{
   if(view.requestId!==requestId)return false;
   chart.setData(index,first,symbol,timeframe);
-  view.rows=first;
-  view.symbol=canonicalSymbol(symbol);
-  view.historyComplete=false;
-  view.period=timeframe;
-  view.hasData=true;
-  view.dataAt=Date.now();
+  view.rows=first;view.symbol=canonicalSymbol(symbol);
+  view.historyComplete=false;view.period=timeframe;
+  view.hasData=true;view.dataAt=Date.now();
   if(index===active)syncHeader();
-  if(options.completeHistory!==false&&!view.historyComplete){
-   data.complete(symbol,timeframe,first).then(rows=>{
-    if(view.requestId!==requestId)return;
-    if(view.symbol!==symbol||view.period!==timeframe)return;
-    if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'){
-     view.pendingRows=rows;
-     view.pendingSymbol=symbol;
-     view.pendingPeriod=timeframe;
-     return;
-    }
-    chart.setData(index,rows,symbol,timeframe);
-    view.rows=rows;
-    view.symbol=canonicalSymbol(symbol);
-    view.historyComplete=true;
-    view.period=timeframe;
-    view.hasData=true;
-    view.dataAt=Date.now();
-    if(index===active)syncHeader();
-   }).catch(exception=>{
-    if(index===active&&symbol===currentSymbol()){
-     error.textContent='历史数据补齐失败 · '+String(exception.message||exception).slice(0,42);
-     error.hidden=false;
-    }
-   });
-  }
+  if(options.completeHistory!==false)completeHistory(index,symbol,first,requestId);
   return true;
  }).catch(exception=>{
   if(view.requestId===requestId&&index===active&&symbol===currentSymbol()){
@@ -228,6 +223,7 @@ function beginTransition(symbol,duration,kind,id,onComplete){
  const view=views[to];
  const fresh=view.symbol===symbol&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000;
  const ready=fresh?Promise.resolve(true):loadLayer(to,symbol);
+ if(fresh&&!view.historyComplete&&!view.historyLoading)completeHistory(to,symbol,view.rows,view.requestId);
  ready.then(loaded=>{
   if(id!==generation||document.hidden)return;
   if(!loaded||!views[to].hasData){
@@ -301,7 +297,7 @@ function preloadNext(){
  const index=(currentIndex+1)%queue.length;
  const view=views[1-active];
  if(view.symbol===queue[index]&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000)return;
- loadLayer(1-active,queue[index]);
+ loadLayer(1-active,queue[index],{completeHistory:false});
 }
 function captureAutoProgress(){
  if(manualSymbol)return autoSnapshot;
