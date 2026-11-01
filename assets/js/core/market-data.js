@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 if(window.VegasMarketData)return;
-const API='https://api.bitget.com',REFRESH_MS=15000,MINI_REFRESH_MS=60000;
+const API='https://api.bitget.com',REFRESH_MS=15000,MINI_REFRESH_MS=window.VegasRuntimeMode?.standalone?90000:60000;
 let stockMap=null,stockMapAt=0,stockMapPromise=null,refreshTimer=0,refreshing=false,stopped=false;
 const miniLastAt=new Map(),miniInFlight=new Set();
 const snapshots=new Map();
