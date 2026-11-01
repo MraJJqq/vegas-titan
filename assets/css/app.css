@@ -60,4 +60,6 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;bac
 html.vegas-standalone #market-cards-layer .mc-slot{contain:layout style}
 
 /* Hide card marks until the shared SVG registry confirms the image is decoded. */
+#market-cards-layer .mc-ico{visibility:hidden}
+#market-cards-layer .mc-ico:has(img[data-ready="true"]){visibility:visible}
 #market-cards-layer .mc-ico img:not([data-ready="true"]){visibility:hidden}
