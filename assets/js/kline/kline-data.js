@@ -49,7 +49,7 @@ function hydrate(key,record){
  if(!record||!Array.isArray(record.rows))return;
  const rows=record.rows.filter(row=>row&&Number.isFinite(row.time)&&Number.isFinite(row.close));
  if(!rows.length)return;
- cache.set(key,{rows,at:0,historyChecked:!!record.historyChecked&&rows.length>=WARMUP_BARS});
+ cache.set(key,{rows,at:0,historyChecked:!!record.historyChecked&&(rows.length>=WARMUP_BARS||!!record.historyExhausted),historyExhausted:!!record.historyExhausted});
  // EMA arrays are deliberately rebuilt from the candle series.
  // Persisted indicator values may belong to a different/revised candle history.
 
@@ -61,7 +61,7 @@ async function ensureCached(symbol,period){
  return cache.get(key)?.rows||[];
 }
 function snapshot(symbol,rows){
- return{key:keyFor(symbol,PERIOD),symbol,period:PERIOD,rows,historyChecked:!!cache.get(keyFor(symbol,PERIOD))?.historyChecked,savedAt:Date.now()};
+ return{key:keyFor(symbol,PERIOD),symbol,period:PERIOD,rows,historyChecked:!!cache.get(keyFor(symbol,PERIOD))?.historyChecked,historyExhausted:!!cache.get(keyFor(symbol,PERIOD))?.historyExhausted,savedAt:Date.now()};
 }
 function persist(symbol,rows){writeRecord(snapshot(symbol,rows)).catch(()=>{});}
 async function request(path){
@@ -125,7 +125,7 @@ async function refreshLatest(symbol,period,key){
   const missingIndicators=[12,36,43,144,169,576,676].some(n=>!emaCache.has(symbol+'|'+PERIOD+'|'+n));
   const rows=mergeRows(symbol,period,oldRows,incoming);
   const changed=rows.length!==oldRows.length||rows.some((row,i)=>!sameCandle(row,oldRows[i]));
-  cache.set(key,{rows,at:Date.now(),historyChecked:!!oldEntry?.historyChecked});
+  cache.set(key,{rows,at:Date.now(),historyChecked:!!oldEntry?.historyChecked,historyExhausted:!!oldEntry?.historyExhausted});
   if(changed||!oldRows.length||missingIndicators)persist(symbol,rows);
   while(cache.size>90)cache.delete(cache.keys().next().value);
   if(changed&&typeof window!=='undefined')window.dispatchEvent(new CustomEvent('vegas-kline-data-updated',{detail:{symbol,period,rows}}));
@@ -168,7 +168,7 @@ async function history(symbol,period,firstRows){
   updateIndicators(symbol,oldRows,result);
   // Mark complete only when the warmup target is reached or Bitget confirms
   // there is no older history. A short/overlapping page is not proof of completion.
-  cache.set(key,{rows:result,at:Date.now(),historyChecked:result.length>=WARMUP_BARS||reachedHistoryStart});
+  cache.set(key,{rows:result,at:Date.now(),historyChecked:result.length>=WARMUP_BARS||reachedHistoryStart,historyExhausted:reachedHistoryStart});
   persist(symbol,result);
   while(cache.size>90)cache.delete(cache.keys().next().value);return result;
  })();
