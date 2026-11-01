@@ -34,7 +34,6 @@ const files=Object.freeze({
  CL:'crude-oil.svg'
 });
 const base='./assets/logos/';
-const warmed=new Map();
 let warmStarted=false;
 function warm(){
  if(warmStarted)return;
