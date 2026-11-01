@@ -8,6 +8,7 @@
   const ALLOWED=new Set(CORE_ORDER.concat(STOCK_ORDER));
   const $=id=>document.getElementById(id);
   let refreshInProgress=false;
+  let activeStateController=null;
   let hasSuccessfulState=false;
   let pageQueueInitialized=false;
   let pageQueue=[];
@@ -84,6 +85,8 @@
   }
   async function fetchStateJson(){
     const controller=new AbortController();
+    activeStateController=controller;
+    if(window.VegasRuntimeMode?.standalone&&document.hidden)controller.abort();
     const timeout=window.setTimeout(()=>controller.abort(),10000);
     try{
       const response=await fetch(STATE_URL+"?t="+Date.now(),{cache:"no-store",signal:controller.signal});
@@ -94,6 +97,7 @@
       throw error;
     }finally{
       window.clearTimeout(timeout);
+      if(activeStateController===controller)activeStateController=null;
     }
   }
   async function refreshV9State(){
@@ -147,6 +151,7 @@
   refreshV9State().finally(scheduleRefresh);
   document.addEventListener("visibilitychange",()=>{
     if(document.hidden){
+      if(window.VegasRuntimeMode?.standalone)activeStateController?.abort();
       if(refreshTimer)window.clearTimeout(refreshTimer);
       refreshTimer=0;
       return;
