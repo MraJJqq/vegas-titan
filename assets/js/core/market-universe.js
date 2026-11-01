@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 const rows=[
-['AAPL','AAPLUSDT'],['MSFT','MSFTUSDT'],['GOOGL','GOOGLUSDT'],['AMZN','AMZNUSDT'],['NVDA','NVDAUSDT'],['TSLA','TSLAUSDT'],['META','METAUSDT'],['INTC','INTCUSDT'],['QCOM','QCOMUSDT'],['AMD','AMDUSDT'],['TSM','TSMUSDT'],['AVGO','AVGOUSDT'],['ORCL','ORCLUSDT'],['ARM','ARMUSDT'],['MU','MUUSDT'],['ASML','ASMLUSDT'],['SNDK','SNDKUSDT'],['SKHYNIX','SKHYNIXUSDT'],['MRVL','MRVLUSDT'],['GLW','GLWUSDT'],['HOOD','HOODUSDT'],['CBRS','CBRSUSDT'],['SPCX','SPCXUSDT'],['BTC','BTCUSDT'],['HYPE','HYPEUSDT'],['XAU','XAUUSDT'],['CL','CLUSDT']
+['AAPL','AAPLUSDT'],['MSFT','MSFTUSDT'],['GOOGL','GOOGLUSDT'],['AMZN','AMZNUSDT'],['NVDA','NVDAUSDT'],['TSLA','TSLAUSDT'],['META','METAUSDT'],['INTC','INTCUSDT'],['QCOM','QCOMUSDT'],['AMD','AMDUSDT'],['TSM','TSMUSDT'],['AVGO','AVGOUSDT'],['ORCL','ORCLUSDT'],['ARM','ARMUSDT'],['MU','MUUSDT'],['ASML','ASMLUSDT'],['SNDK','SNDKUSDT'],['SKHYNIX','SKHYUSDT'],['MRVL','MRVLUSDT'],['GLW','GLWUSDT'],['HOOD','HOODUSDT'],['CBRS','CBRSUSDT'],['SPCX','SPCXUSDT'],['BTC','BTCUSDT'],['HYPE','HYPEUSDT'],['XAU','XAUUSDT'],['CL','CLUSDT']
 ];
 const stocks=new Set(rows.slice(0,23).map(row=>row[0]));
 const names={"AAPL":"Apple","MSFT":"Microsoft","GOOGL":"Alphabet","AMZN":"Amazon","NVDA":"NVIDIA","TSLA":"Tesla","META":"Meta","INTC":"Intel","QCOM":"Qualcomm","AMD":"AMD","TSM":"TSMC","AVGO":"Broadcom","ORCL":"Oracle","ARM":"Arm","MU":"Micron","ASML":"ASML","SNDK":"SanDisk","SKHYNIX":"SK hynix","MRVL":"Marvell","GLW":"Corning","HOOD":"Robinhood","CBRS":"Cerence","SPCX":"SpaceX","BTC":"Bitcoin","HYPE":"Hyperliquid","XAU":"Gold","CL":"Crude Oil"};
