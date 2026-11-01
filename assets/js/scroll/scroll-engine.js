@@ -109,10 +109,6 @@ function mount(root,slots){
     const speed=state.handoffStartSpeed+(targetSpeed-state.handoffStartSpeed)*eased;
     move(speed*dt,Math.sign(speed));
     if(progress>=1){state.mode='auto';state.touchSpeed=0;}
-   }else if(state.mode==='inertia'){
-    move(state.touchSpeed*dt,Math.sign(state.touchSpeed));
-    state.touchSpeed*=Math.exp(-dt/520);
-    if(Math.abs(state.touchSpeed)<.025){state.touchSpeed=0;state.mode='auto';state.autoDelayUntil=now+120;}
    }else if(state.mode==='auto'&&!state.touching&&now>=state.autoDelayUntil){
     measure();
     if(totalHeight>0&&ordered.length>1){
@@ -123,7 +119,7 @@ function mount(root,slots){
    }
    focus();
   }catch(error){recover(error);}
-  finally{if(state.mode==='auto'||state.mode==='wheel'||state.mode==='inertia'||state.mode==='handoff')requestFrame();}
+  finally{if(state.mode==='auto'||state.mode==='wheel'||state.mode==='handoff')requestFrame();}
  }
  function onWheel(event){
   if(Math.abs(event.deltaY)<.1)return;
