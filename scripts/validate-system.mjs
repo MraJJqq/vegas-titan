@@ -54,6 +54,13 @@ const appCss=read('assets/css/app.css');
 if(!appCss.includes('--z-layer-kline:10;--z-layer-scroll:30;--z-layer-ticker:50'))fail('Explicit K-line < reserved middle layer < scroll/cards < ticker stacking order missing');
 if(appCss.includes('--z-layer-between-min')||appCss.includes('--z-layer-between-max')||appCss.includes('--z-layer-cards'))fail('Obsolete layer z-index tokens remain');
 const slotRule=appCss.match(/#market-cards-layer \.mc-slot\{[^}]*\}/)?.[0]||'';
+
+const offscreenSlotRule=appCss.match(/#market-cards-layer \.mc-slot:not\(\.mc-in-view\)\{[^}]*\}/)?.[0]||'';
+if(!offscreenSlotRule||offscreenSlotRule.includes('translateZ(0)')||!offscreenSlotRule.includes('backface-visibility:visible'))fail('Off-screen card slots must release forced GPU promotion while visible slots retain their original compositor path');
+if(!appCss.includes('#market-cards-layer .mc-slot:not(.mc-in-view) .mc-float')||!appCss.includes('#market-cards-layer .mc-slot:not(.mc-in-view) .mc-gshadow')||!appCss.includes('#market-cards-layer .mc-slot:not(.mc-in-view) .mc-card::before')||!appCss.includes('animation-play-state:paused!important'))fail('Off-screen decorative animations must remain paused');
+const focusBlock=scrollEngine.slice(scrollEngine.indexOf('function focus(){'),scrollEngine.indexOf('function requestFrame(){'));
+if(!focusBlock.includes('Math.floor(top/Math.max(1,stride))-1')||!focusBlock.includes('Math.ceil((top+height)/Math.max(1,stride))+1')||focusBlock.includes(')-2')||focusBlock.includes(')+2'))fail('Scroll focus styling must use exactly one off-screen slot of look-ahead on each side');
+
 if(!slotRule||slotRule.includes('filter:'))fail('Card slot must not create a filter backdrop root that blocks K-line glass blur');
 if(!appCss.includes('#market-cards-layer{--up:#2ee6a6;position:fixed;z-index:var(--z-layer-scroll);')||!appCss.includes('#market-cards-layer .mc-columns{position:absolute;inset:0 auto 0 0;width:min(100vw,380px);min-width:0;min-height:0;overflow:visible;pointer-events:none;')||!appCss.includes('#market-cards-layer .mc-side{position:relative;z-index:2;'))fail('Only the real card scroll viewport may receive pointer/touch input above K-line');
 const html=read('index.html');
