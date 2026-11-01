@@ -35,6 +35,21 @@ const files=Object.freeze({
 });
 const base='./assets/logos/';
 let warmStarted=false;
+const loaded=new Map();
+function load(symbol){
+ const key=String(symbol||'').toUpperCase();
+ const url=get(key);
+ if(!url)return Promise.resolve('');
+ if(loaded.has(key))return loaded.get(key);
+ const promise=new Promise(resolve=>{
+  const img=new Image();img.decoding='async';
+  img.onload=()=>{if(typeof img.decode==='function')img.decode().catch(()=>{}).finally(()=>resolve(url));else resolve(url);};
+  img.onerror=()=>{loaded.delete(key);resolve('');};
+  img.src=url;
+ });
+ loaded.set(key,promise);return promise;
+}
+function get(symbol){const file=files[String(symbol||'').toUpperCase()];return file?base+file:'';}
 function warm(){
  if(warmStarted)return;
  warmStarted=true;
@@ -44,10 +59,8 @@ function warm(){
   let count=0;
   while(index<queue.length&&count<4&&(count===0||!deadline||deadline.timeRemaining()>4)){
    const file=queue[index++];
-   const img=new Image();
-   img.decoding='async';
-   img.src=base+file;
-   if(typeof img.decode==='function')img.decode().catch(()=>{});
+   const symbol=Object.keys(files).find(key=>files[key]===file);
+   if(symbol)load(symbol);
    count++;
   }
   if(index<queue.length){
@@ -59,7 +72,7 @@ function warm(){
  else window.setTimeout(()=>run(null),100);
 }
 window.VegasIconRegistry=Object.freeze({
- get(symbol){const file=files[String(symbol||'').toUpperCase()];return file?base+file:'';},
+ get,load,
  has(symbol){return Object.prototype.hasOwnProperty.call(files,String(symbol||'').toUpperCase());},
  symbols(){return Object.keys(files);},
  warm
