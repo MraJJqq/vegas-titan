@@ -6,7 +6,7 @@ function mount(root,slots){
  const ordered=slots.slice();
  const state={mode:'auto',raf:0,timer:0,lastTime:0,autoDelayUntil:performance.now()+250,
   wheelTarget:root.scrollTop,wheelSpeed:0,touchPending:false,touching:false,dragging:false,
-  touchY:0,touchTime:0,touchSpeed:0,lastScroll:root.scrollTop,looping:false};
+  touchY:0,touchTime:0,touchSpeed:0,handoffStartSpeed:0,handoffStartTime:0,handoffDuration:700,lastScroll:root.scrollTop,looping:false};
  let gap=0,slotHeight=0,stride=0,totalHeight=0,geometryDirty=true,autoFraction=0,lastFocusRange='';
  let alive=true,lastErrorAt=0;
  const styleCache=new WeakMap();
@@ -101,6 +101,14 @@ function mount(root,slots){
     if(Math.abs(state.wheelSpeed)<.025&&Math.abs(state.wheelTarget-root.scrollTop)<.6){
      state.mode='auto';state.wheelSpeed=0;state.autoDelayUntil=now+100;
     }
+   }else if(state.mode==='handoff'){
+    measure();
+    const targetSpeed=totalHeight>0?totalHeight/120/1000:0;
+    const progress=clamp((now-state.handoffStartTime)/state.handoffDuration,0,1);
+    const eased=progress*progress*(3-2*progress);
+    const speed=state.handoffStartSpeed+(targetSpeed-state.handoffStartSpeed)*eased;
+    move(speed*dt,Math.sign(speed));
+    if(progress>=1){state.mode='auto';state.touchSpeed=0;}
    }else if(state.mode==='inertia'){
     move(state.touchSpeed*dt,Math.sign(state.touchSpeed));
     state.touchSpeed*=Math.exp(-dt/520);
@@ -115,7 +123,7 @@ function mount(root,slots){
    }
    focus();
   }catch(error){recover(error);}
-  finally{if(state.mode==='auto'||state.mode==='wheel'||state.mode==='inertia')requestFrame();}
+  finally{if(state.mode==='auto'||state.mode==='wheel'||state.mode==='inertia'||state.mode==='handoff')requestFrame();}
  }
  function onWheel(event){
   if(Math.abs(event.deltaY)<.1)return;
@@ -160,9 +168,13 @@ function mount(root,slots){
   if(state.touchPending){state.touchPending=false;return;}
   if(!state.touching)return;
   state.touching=false;state.dragging=false;root.classList.remove('mc-is-touching');
-  if(!cancelled&&Math.abs(state.touchSpeed)>.035){
-   state.touchSpeed=clamp(state.touchSpeed*1.25,-3.6,3.6);state.mode='inertia';requestFrame();
-  }else{state.touchSpeed=0;state.mode='auto';state.autoDelayUntil=performance.now()+1400;requestFrame();}
+  if(!cancelled){
+   state.handoffStartSpeed=clamp(state.touchSpeed*1.25,-3.6,3.6);
+   state.handoffStartTime=performance.now();
+   state.mode='handoff';state.autoDelayUntil=0;requestFrame();
+  }else{
+   state.touchSpeed=0;state.mode='auto';state.autoDelayUntil=performance.now()+250;requestFrame();
+  }
  }
  function onTouchEnd(event){if(!event.touches||event.touches.length===0)endTouch(false);}
  function onTouchCancel(event){if(!event.touches||event.touches.length===0)endTouch(true);}
