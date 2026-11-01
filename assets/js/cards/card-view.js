@@ -84,7 +84,7 @@ function mount(root,instruments,onSelect){
  function onTouchPointerCancel(event){clearTouchPointer(event);}
  function onClick(event){
   const card=cardFromEvent(event);if(!card)return;
-  if(event.pointerType==='touch')return;
+  if(event.pointerType==='touch'){lastTouchActivation=null;return;}
   const touch=lastTouchActivation;
   if(event.detail!==0&&touch&&touch.card===card&&Date.now()-touch.time<800&&
    Math.hypot(event.clientX-touch.x,event.clientY-touch.y)<25){
