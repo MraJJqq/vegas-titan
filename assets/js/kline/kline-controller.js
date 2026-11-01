@@ -115,13 +115,22 @@ function canonicalSymbol(value){
 function syncHeader(){
  const view=views[active],symbol=canonicalSymbol(view?.symbol);if(!view?.hasData||!symbol)return;
  const request=++headerRequest;title.textContent=symbol;
+ const registry=window.VegasIconRegistry;
  const src=logoUrlFor(symbol);
  if(logo){
-  logo.onerror=()=>{if(request!==headerRequest)return;logo.hidden=true;if(logoFallback){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}};
-  if(src){logo.hidden=false;if(logo.getAttribute('src')!==src)logo.src=src;if(logoFallback)logoFallback.hidden=true;}
-  else{logo.removeAttribute('src');logo.hidden=true;}
+  logo.hidden=true;
+  logo.onerror=()=>{if(request!==headerRequest)return;logo.hidden=true;};
+  if(src&&registry?.load){
+   registry.load(symbol).then(ready=>{
+    if(request!==headerRequest||!logo.isConnected)return;
+    if(!ready){logo.hidden=true;return;}
+    if(logo.getAttribute('src')!==ready)logo.src=ready;
+    logo.hidden=false;
+    if(logoFallback)logoFallback.hidden=true;
+   }).catch(()=>{if(request===headerRequest)logo.hidden=true;});
+  }else{logo.removeAttribute('src');}
  }
- if(logoFallback&&!src){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}
+ if(logoFallback)logoFallback.hidden=true;
  if(view.rows&&view.rows.length){error.hidden=true;}
 }
 function completeHistory(index,symbol,first,requestId){
