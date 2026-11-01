@@ -56,7 +56,7 @@ function mount(root,instruments,onSelect){
  }
  // Unified pointer gesture: one pointer sequence, one activation, no synthetic-click dependency.
  let activePointer=null;
- const thresholds={mouse:6,pen:9,touch:12};
+ const thresholds={mouse:6,pen:9,touch:7};
  function onPointerDown(event){
   if(activePointer||!event.isPrimary||event.button!==0)return;
   const card=cardFromEvent(event);if(!card)return;
@@ -78,6 +78,9 @@ function mount(root,instruments,onSelect){
   const state=clearPointer(event);if(!state||state.moved)return;
   if(!state.card.isConnected||!root.contains(state.card))return;
   if(state.card.dataset.symbol!==state.symbol)return;
+  const releaseTarget=document.elementFromPoint(event.clientX,event.clientY);
+  const releaseCard=releaseTarget instanceof Element?releaseTarget.closest('.mc-card[data-symbol]'):null;
+  if(releaseCard!==state.card)return;
   select(state.symbol);
  }
  function onPointerCancel(event){clearPointer(event);}
@@ -149,7 +152,10 @@ function mount(root,instruments,onSelect){
   root.removeEventListener('pointerup',onPointerUp,true);
   root.removeEventListener('pointercancel',onPointerCancel,true);
   root.removeEventListener('lostpointercapture',onPointerCancel,true);
-  activePointer=null;
+  if(activePointer){
+   try{if(root.hasPointerCapture(activePointer.id))root.releasePointerCapture(activePointer.id);}catch(_){}
+   activePointer=null;
+  }
   root.removeEventListener('pointermove',onPointerMove);root.removeEventListener('pointerout',resetTilt);
   ['pointerleave','pointerup','pointercancel'].forEach(type=>root.removeEventListener(type,resetTilt));
   if(pointerRaf)cancelAnimationFrame(pointerRaf);
