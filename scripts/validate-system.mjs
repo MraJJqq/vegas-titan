@@ -16,6 +16,7 @@ if(!market.includes('visibleSymbols')||!market.includes('miniLastAt')||!market.i
 if(!market.includes('neededFutures')||!market.includes('neededSpots'))fail('Market ticker processing must index only tracked instruments');
 const kline=read('assets/js/kline/kline-data.js'),scrollEngine=read('assets/js/scroll/scroll-engine.js'),view=read('assets/js/cards/card-view.js'),card=read('assets/js/cards/card-system.js'),controller=read('assets/js/kline/kline-controller.js');
 if(!scrollEngine.includes("removeEventListener('touchend',onTouchEnd,true)")||!scrollEngine.includes("removeEventListener('touchcancel',onTouchCancel,true)"))fail('Scroll touch listener teardown missing');
+if(!scrollEngine.includes('event.touches.length!==1')||!scrollEngine.includes('event.touches.length===0'))fail('Card scrolling must ignore multi-touch and wait for all fingers to lift');
 if(scrollEngine.includes('--mc-depth-blur'))fail('Unused card depth-blur state remains in scroll engine');
 if(controller.includes('autoPhase')||controller.includes('targetIndex')||controller.includes('transitionTarget'))fail('Unused K-line controller state remains');
 if(!scrollEngine.includes("state.timer=setTimeout(schedule,33)")||!scrollEngine.includes("state.mode==='touch')return")||!scrollEngine.includes('focus();'))fail('Adaptive scroll scheduler or direct touch-frame rendering missing');
@@ -55,7 +56,7 @@ const slotRule=appCss.match(/#market-cards-layer \.mc-slot\{[^}]*\}/)?.[0]||'';
 if(!slotRule||slotRule.includes('filter:'))fail('Card slot must not create a filter backdrop root that blocks K-line glass blur');
 if(!appCss.includes('#market-cards-layer{--up:#2ee6a6;position:fixed;z-index:var(--z-layer-scroll);')||!appCss.includes('#market-cards-layer .mc-columns{position:absolute;inset:0 auto 0 0;width:min(100vw,380px);min-width:0;min-height:0;overflow:visible;pointer-events:none;')||!appCss.includes('#market-cards-layer .mc-side{position:relative;z-index:2;'))fail('Only the real card scroll viewport may receive pointer/touch input above K-line');
 const html=read('index.html');
-if(!html.includes('scroll-engine.js?v=continuous-fade-3'))fail('Optimized scroll scheduler cache version missing');
+if(!html.includes('scroll-engine.js?v=single-touch-guard-1'))fail('Single-touch scroll guard cache version missing');
 const klinePos=html.indexOf('id="vegas-right-scroll"');
 const scrollPos=html.indexOf('id="market-cards-layer"');
 const tickerPos=html.indexOf('id="vegas-signal-ticker"');
@@ -65,7 +66,7 @@ if(!kline.includes("productType:'USDT-FUTURES'")||kline.includes("category:'SPOT
 if(!controller.includes("manualPausedRemaining")||!controller.includes("manualDeadline=Date.now()+remaining"))fail('Manual K-line timer background pause/resume missing');
 if(controller.includes('warmupBars')||controller.includes('红峰历史预热')||controller.includes('预热目标'))fail('K-line controller must not enforce red-peak warmup');
 if(!controller.includes('function preloadNext()')||!controller.includes('loadLayer(1-active,queue[index],{completeHistory:false});')||!controller.includes('function completeHistory('))fail('Next-symbol data preload contract missing');
-if(!html.includes('market-data.js?v=visible-ticker-index-2')||!html.includes('card-view.js?v=card-render-guard-2')||!html.includes('kline-data.js?v=skhy-contract-1')||!html.includes('kline-chart.js?v=chart-options-cache-2')||!html.includes('kline-controller.js?v=preload-history-defer-1'))fail('Optimized runtime module cache versions missing');
+if(!html.includes('market-data.js?v=visible-ticker-index-2')||!html.includes('card-view.js?v=card-render-guard-2')||!html.includes('kline-data.js?v=ema-shared-prefix-1')||!html.includes('kline-chart.js?v=chart-options-cache-2')||!html.includes('kline-controller.js?v=preload-history-defer-1'))fail('Optimized runtime module cache versions missing');
 for(const p of ['assets/js/signals/v9-events.js','assets/js/core/market-universe.js','assets/js/core/market-data.js','assets/js/cards/card-view.js','assets/js/scroll/scroll-engine.js','assets/js/cards/card-system.js','assets/js/kline/kline-data.js'])if(!html.includes(p))fail('Entry point missing '+p);
 if(!html.includes("chart.src='./assets/js/kline/kline-chart.js")||!html.includes("app.src='./assets/js/kline/kline-controller.js"))fail('Dynamic K-line loader missing');
 const signalReader=read('assets/js/signals/v9-events.js');
