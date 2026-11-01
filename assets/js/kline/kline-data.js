@@ -89,11 +89,15 @@ async function context(symbol,period){
  };
 }
 function sameCandle(a,b){return !!a&&!!b&&a.time===b.time&&a.open===b.open&&a.high===b.high&&a.low===b.low&&a.close===b.close;}
-function updateIndicators(symbol,oldRows,newRows){
+function commonPrefixLength(oldRows,newRows){
+ let common=0,limit=Math.min(oldRows.length,newRows.length);
+ while(common<limit&&sameCandle(oldRows[common],newRows[common]))common++;
+ return common;
+}
+function updateIndicators(symbol,oldRows,newRows,knownCommon){
+ const common=Number.isInteger(knownCommon)?knownCommon:commonPrefixLength(oldRows,newRows);
  [12,36,43,144,169,576,676].forEach(length=>{
   const key=symbol+'|'+PERIOD+'|'+length,old=emaCache.get(key)||[];
-  let common=0,limit=Math.min(oldRows.length,newRows.length);
-  while(common<limit&&sameCandle(oldRows[common],newRows[common]))common++;
   if(common===oldRows.length&&old.length&&newRows.length===oldRows.length)return;
   let out=[],value=0,start=0;
   if(common>=length&&old.length){
@@ -113,8 +117,9 @@ function updateIndicators(symbol,oldRows,newRows){
 function mergeRows(symbol,period,oldRows,incoming){
  const merged=new Map(oldRows.map(row=>[row.time,row]));incoming.forEach(row=>merged.set(row.time,row));
  const rows=[...merged.values()].sort((a,b)=>a.time-b.time);
- 
- updateIndicators(symbol,oldRows,rows);return rows;
+ const common=commonPrefixLength(oldRows,rows);
+ updateIndicators(symbol,oldRows,rows,common);
+ return{rows,common};
 }
 async function refreshLatest(symbol,period,key){
  if(inflight.has(key))return inflight.get(key);
@@ -126,8 +131,8 @@ async function refreshLatest(symbol,period,key){
   if(!incoming.length)throw Error('No valid candles for '+symbol);
   const oldEntry=cache.get(key),oldRows=oldEntry?.rows||[];
   const missingIndicators=[12,36,43,144,169,576,676].some(n=>!emaCache.has(symbol+'|'+PERIOD+'|'+n));
-  const rows=mergeRows(symbol,period,oldRows,incoming);
-  const changed=rows.length!==oldRows.length||rows.some((row,i)=>!sameCandle(row,oldRows[i]));
+  const merged=mergeRows(symbol,period,oldRows,incoming),rows=merged.rows;
+  const changed=rows.length!==oldRows.length||merged.common<oldRows.length;
   cache.set(key,{rows,at:Date.now(),historyChecked:!!oldEntry?.historyChecked,historyExhausted:!!oldEntry?.historyExhausted});
   if(changed||!oldRows.length||missingIndicators)persist(symbol,rows);
   while(cache.size>90)cache.delete(cache.keys().next().value);
