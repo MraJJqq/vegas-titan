@@ -50,6 +50,8 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;bac
 #market-cards-layer .mc-slot:not(.mc-in-view) .mc-gshadow{animation-play-state:paused!important}
 #market-cards-layer .mc-slot:not(.mc-in-view) .mc-card::before{animation-play-state:paused!important}
 #market-cards-layer .mc-slot:not(.mc-in-view) .mc-card{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+/* Off-screen slots relinquish forced GPU promotion; visible slots keep the original compositor path. */
+#market-cards-layer .mc-slot:not(.mc-in-view){transform:scale(var(--mc-focus-scale,1));backface-visibility:visible}
 @media(prefers-reduced-motion:reduce){
  #market-cards-layer .mc-card{transition-duration:.01ms}
  #market-cards-layer .mc-float,#market-cards-layer .mc-gshadow,#market-cards-layer .mc-card::before{animation:none}
