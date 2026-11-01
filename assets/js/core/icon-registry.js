@@ -34,9 +34,38 @@ const files=Object.freeze({
  CL:'crude-oil.svg'
 });
 const base='./assets/logos/';
+const warmed=new Map();
+let warmStarted=false;
+function warm(){
+ if(warmStarted)return;
+ warmStarted=true;
+ const queue=Object.values(files);
+ let index=0;
+ const run=deadline=>{
+  let count=0;
+  while(index<queue.length&&count<4&&(count===0||!deadline||deadline.timeRemaining()>4)){
+   const file=queue[index++];
+   const img=new Image();
+   img.decoding='async';
+   img.src=base+file;
+   warmed.set(file,img);
+   if(typeof img.decode==='function')img.decode().catch(()=>{});
+   count++;
+  }
+  if(index<queue.length){
+   if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(run,{timeout:1200});
+   else window.setTimeout(()=>run(null),80);
+  }
+ };
+ if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(run,{timeout:1200});
+ else window.setTimeout(()=>run(null),100);
+}
 window.VegasIconRegistry=Object.freeze({
  get(symbol){const file=files[String(symbol||'').toUpperCase()];return file?base+file:'';},
  has(symbol){return Object.prototype.hasOwnProperty.call(files,String(symbol||'').toUpperCase());},
- symbols(){return Object.keys(files);}
+ symbols(){return Object.keys(files);},
+ warm
 });
+if(document.readyState==='complete')warm();
+else window.addEventListener('load',warm,{once:true,passive:true});
 })();
