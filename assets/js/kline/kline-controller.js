@@ -226,7 +226,7 @@ function beginTransition(symbol,duration,kind,id,onComplete){
  const to=1-from;
  mode=kind;
  const view=views[to];
- const fresh=view.symbol===symbol&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000;
+ const fresh=view.symbol===symbol&&view.period==='4H'&&view.hasData&&view.historyComplete&&Date.now()-view.dataAt<15000;
  const ready=fresh?Promise.resolve(true):loadLayer(to,symbol);
  ready.then(loaded=>{
   if(id!==generation||document.hidden)return;
@@ -300,7 +300,7 @@ function preloadNext(){
  if(manualSymbol||queue.length<2||document.hidden)return;
  const index=(currentIndex+1)%queue.length;
  const view=views[1-active];
- if(view.symbol===queue[index]&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000)return;
+ if(view.symbol===queue[index]&&view.period==='4H'&&view.hasData&&view.historyComplete&&Date.now()-view.dataAt<15000)return;
  loadLayer(1-active,queue[index],{completeHistory:false});
 }
 function captureAutoProgress(){
