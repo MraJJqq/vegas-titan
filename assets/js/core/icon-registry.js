@@ -34,7 +34,6 @@ const files=Object.freeze({
  CL:'crude-oil.svg'
 });
 const base='./assets/logos/';
-const warmed=new Map();
 let warmStarted=false;
 function warm(){
  if(warmStarted)return;
@@ -65,6 +64,8 @@ window.VegasIconRegistry=Object.freeze({
  symbols(){return Object.keys(files);},
  warm
 });
-if(document.readyState==='complete')warm();
-else window.addEventListener('load',warm,{once:true,passive:true});
+if(!window.VegasRuntimeMode?.standalone){
+ if(document.readyState==='complete')warm();
+ else window.addEventListener('load',warm,{once:true,passive:true});
+}
 })();

@@ -8,6 +8,9 @@
   const ALLOWED=new Set(CORE_ORDER.concat(STOCK_ORDER));
   const $=id=>document.getElementById(id);
   let refreshInProgress=false;
+  let activeStateController=null;
+  const backgroundAborts=new WeakSet();
+  let refreshRequested=false;
   let hasSuccessfulState=false;
   let pageQueueInitialized=false;
   let pageQueue=[];
@@ -84,20 +87,30 @@
   }
   async function fetchStateJson(){
     const controller=new AbortController();
+    activeStateController=controller;
+    if(window.VegasRuntimeMode?.standalone&&document.hidden)controller.abort();
     const timeout=window.setTimeout(()=>controller.abort(),10000);
     try{
       const response=await fetch(STATE_URL+"?t="+Date.now(),{cache:"no-store",signal:controller.signal});
       if(!response.ok)throw new Error("V9信号源 HTTP "+response.status);
       return await response.json();
     }catch(error){
-      if(error&&error.name==="AbortError")throw new Error("V9信号源请求超时（10秒）");
+      if(error&&error.name==="AbortError"){
+        if(backgroundAborts.has(controller))throw error;
+        throw new Error("V9信号源请求超时（10秒）");
+      }
       throw error;
     }finally{
       window.clearTimeout(timeout);
+      if(activeStateController===controller)activeStateController=null;
     }
   }
   async function refreshV9State(){
-    if(document.hidden||refreshInProgress)return;
+    if(document.hidden)return;
+    if(refreshInProgress){
+      if(window.VegasRuntimeMode?.standalone)refreshRequested=true;
+      return;
+    }
     refreshInProgress=true;
     try{
       const state=await fetchStateJson();
@@ -129,11 +142,17 @@
       renderSymbols("v9Stocks",STOCK_ORDER.filter(s=>seen.has(s)));
       renderSymbols("v9Core",CORE_ORDER.filter(s=>seen.has(s)));
     }catch(error){
-      const detail=String(error&&error.message||error).slice(0,70);
-      if(!hasSuccessfulState)renderMessage("读取失败："+detail);
-      console.warn("V9 formal signal feed refresh failed; retaining last valid state:",error);
+      if(!(error&&error.name==="AbortError")){
+        const detail=String(error&&error.message||error).slice(0,70);
+        if(!hasSuccessfulState)renderMessage("读取失败："+detail);
+        console.warn("V9 formal signal feed refresh failed; retaining last valid state:",error);
+      }
     }finally{
       refreshInProgress=false;
+      if(refreshRequested){
+        refreshRequested=false;
+        if(!document.hidden)window.setTimeout(refreshV9State,0);
+      }
     }
   }
   let refreshTimer=0;
@@ -147,6 +166,10 @@
   refreshV9State().finally(scheduleRefresh);
   document.addEventListener("visibilitychange",()=>{
     if(document.hidden){
+      if(window.VegasRuntimeMode?.standalone&&activeStateController){
+        backgroundAborts.add(activeStateController);
+        activeStateController.abort();
+      }
       if(refreshTimer)window.clearTimeout(refreshTimer);
       refreshTimer=0;
       return;

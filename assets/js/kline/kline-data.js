@@ -4,7 +4,9 @@
 const API='https://api.bitget.com',PERIOD='4H';
 const DB_NAME='vegas-titan-kline-cache',DB_VERSION=1,STORE='series',MAX_RECORDS=36;
 const cache=new Map(),inflight=new Map(),backfills=new Map(),emaCache=new Map();
+const activeControllers=new Set();
 let dbPromise=null;
+function abortActiveRequests(){activeControllers.forEach(controller=>controller.abort());activeControllers.clear();}
 function openDB(){
  if(!('indexedDB'in window))return Promise.resolve(null);
  if(dbPromise)return dbPromise;
@@ -66,8 +68,10 @@ function snapshot(symbol,rows){
 function persist(symbol,rows){writeRecord(snapshot(symbol,rows)).catch(()=>{});}
 async function request(path){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+ activeControllers.add(controller);
+ if(window.VegasRuntimeMode?.standalone&&document.hidden)controller.abort();
  try{const response=await fetch(API+path,{cache:'no-store',signal:controller.signal});if(!response.ok)throw Error('Bitget HTTP '+response.status);const json=await response.json();if(json.code!=='00000'||!Array.isArray(json.data))throw Error(json.msg||'Bitget response invalid');return json.data;}
- finally{clearTimeout(timer);}
+ finally{clearTimeout(timer);activeControllers.delete(controller);}
 }
 function normalize(rows){
  return rows.filter(row=>Array.isArray(row)&&row.slice(0,5).every(v=>Number.isFinite(+v)&&+v>0))
@@ -161,15 +165,14 @@ async function history(symbol,period,firstRows){
   const seed=cachedRows.length>firstRows.length?cachedRows:firstRows;
   const ctx=await context(symbol,period),all=new Map(seed.map(row=>[row.time,row]));
   let oldest=Math.min(...all.keys()),endTime=oldest*1000-1,reachedHistoryStart=false;
-  let paginationStopped=false;
   while(true){
    const params={...ctx.historyParams,endTime:String(endTime)},rows=normalize(await request(ctx.history+'?'+new URLSearchParams(params)));
    if(!rows.length){reachedHistoryStart=true;break;}
    let added=0;rows.forEach(row=>{if(!all.has(row.time)){all.set(row.time,row);added++;}});
    const nextOldest=Math.min(...rows.map(row=>row.time));
-   if(!Number.isFinite(nextOldest)||nextOldest>=oldest){paginationStopped=true;break;}
+   if(!Number.isFinite(nextOldest)||nextOldest>=oldest)break;
    oldest=nextOldest;endTime=oldest*1000-1;
-   if(!added){paginationStopped=true;break;}
+   if(!added)break;
   }
   const latestRows=cache.get(key)?.rows||[];latestRows.forEach(row=>all.set(row.time,row));
   const result=[...all.values()].sort((a,b)=>a.time-b.time),oldRows=cache.get(key)?.rows||[];
@@ -190,5 +193,6 @@ function ema(rows,length,symbol){
  for(let i=length;i<rows.length;i++){value=rows[i].close*factor+value*(1-factor);out.push({time:rows[i].time,value});}
  return out;
 }
-window.VegasKlineData={load:latest,complete:history,ema,historyMode:'all-available',periods:[PERIOD],emas:[12,36,43,144,169,576,676],cache:{type:'IndexedDB',period:PERIOD}};
+if(window.VegasRuntimeMode?.standalone)document.addEventListener('visibilitychange',()=>{if(document.hidden)abortActiveRequests();},{passive:true});
+ window.VegasKlineData={load:latest,complete:history,ema,historyMode:'all-available',periods:[PERIOD],emas:[12,36,43,144,169,576,676],cache:{type:'IndexedDB',period:PERIOD}};
 })();

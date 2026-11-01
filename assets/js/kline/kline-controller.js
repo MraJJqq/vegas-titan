@@ -26,7 +26,7 @@ const TRANSITION_MS=5000;
 const MANUAL_TOTAL_MS=10000;
 const REVEAL_MS=1000;
 const INITIAL_HOLD_MS=4000;
-const REFRESH_MS=60000;
+const REFRESH_MS=window.VegasRuntimeMode?.standalone?90000:60000;
 
 let queue=[];
 let currentIndex=0;
@@ -130,7 +130,8 @@ function completeHistory(index,symbol,first,requestId){
  view.historyLoading=true;
  data.complete(symbol,'4H',first).then(rows=>{
   if(view.requestId!==requestId||view.symbol!==canonicalSymbol(symbol)||view.period!=='4H')return;
-  if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'){
+  if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'||
+     (window.VegasRuntimeMode?.standalone&&index!==active)){
    view.pendingRows=rows;view.pendingSymbol=symbol;view.pendingPeriod='4H';
    view.historyComplete=true;
    return;
@@ -139,7 +140,7 @@ function completeHistory(index,symbol,first,requestId){
   view.rows=rows;view.historyComplete=true;view.dataAt=Date.now();
   if(index===active)syncHeader();
  }).catch(exception=>{
-  if(index===active&&symbol===currentSymbol()){
+  if(!document.hidden&&index===active&&symbol===currentSymbol()){
    error.textContent='历史数据补齐失败 · '+String(exception.message||exception).slice(0,42);
    error.hidden=false;
   }
@@ -152,6 +153,7 @@ function loadLayer(index,symbol,options={}){
  const requestId=(view.requestId||0)+1;
  view.requestId=requestId;
  view.historyLoading=false;
+ view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;
  return data.load(symbol,timeframe).then(first=>{
   if(view.requestId!==requestId)return false;
   chart.setData(index,first,symbol,timeframe);
@@ -173,10 +175,12 @@ function onKlineDataUpdated(event){
  const detail=event.detail||{};
  const symbol=canonicalSymbol(detail.symbol);
  if(detail.period!=='4H'||!Array.isArray(detail.rows)||!symbol)return;
- const index=views.findIndex(view=>canonicalSymbol(view.symbol)===symbol&&view.period==='4H'&&view.hasData);
+ const activeView=views[active];
+ const index=activeView&&canonicalSymbol(activeView.symbol)===symbol&&activeView.period==='4H'&&activeView.hasData
+  ?active:views.findIndex(view=>canonicalSymbol(view.symbol)===symbol&&view.period==='4H'&&view.hasData);
  if(index<0)return;
  const view=views[index];
- if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'){
+ if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'||(window.VegasRuntimeMode?.standalone&&index!==active)){
   view.pendingRows=detail.rows;view.pendingSymbol=symbol;view.pendingPeriod='4H';return;
  }
  chart.setData(index,detail.rows,symbol,'4H');
@@ -194,6 +198,7 @@ function applyDeferredRefresh(){
   view.pendingRows=null;
   view.pendingSymbol=null;
   view.pendingPeriod=null;
+  if(!view.hasData||canonicalSymbol(view.symbol)!==canonicalSymbol(symbol)||view.period!==timeframe)return;
   chart.setData(index,rows,symbol,timeframe);
   view.rows=rows;
   view.symbol=canonicalSymbol(symbol);
@@ -234,6 +239,12 @@ function beginTransition(symbol,duration,kind,id,onComplete){
    mode=manualSymbol?'manual':'idle';
    if(typeof onComplete==='function')onComplete(false);
    return;
+  }
+  const targetView=views[to];
+  if(targetView.pendingRows&&targetView.pendingSymbol===symbol&&targetView.pendingPeriod==='4H'){
+   const rows=targetView.pendingRows;
+   targetView.pendingRows=null;targetView.pendingSymbol=null;targetView.pendingPeriod=null;
+   chart.setData(to,rows,symbol,'4H');targetView.rows=rows;targetView.dataAt=Date.now();targetView.hasData=true;
   }
   const transitionDuration=typeof duration==='function'?Math.max(0,duration()):duration;
   if(id!==generation||document.hidden)return;
@@ -443,6 +454,7 @@ function hide(){
   view.requestId=(view.requestId||0)+1;
   view.hasData=false;
   view.symbol='';
+  view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;
  });
  if(chart){
   chart.capture(views[active]);
