@@ -15,7 +15,7 @@ function create(root,layers,LWC,getActive){
   else if(saved&&Number.isFinite(saved.rightEdgeOffset))viewport.rightGap=clamp(saved.rightEdgeOffset,-5000,50000);
 
  }catch{}
- let resizeFrame=0,gestureFrame=0,wheelEndTimer=0;
+ let resizeFrame=0,gestureFrame=0,wheelEndTimer=0,resizePending=false;
  let activeGesture=null,wheelGesture=false,wheelTarget=null,destroyed=false;
  const views=layers.map(layer=>{
   const host=document.createElement('div');host.className='vr-chart';layer.append(host);
@@ -110,15 +110,20 @@ function create(root,layers,LWC,getActive){
   if(target.rows.length)apply(target);
  }
  function capture(view){if(read(view)){save();applyPeers(view);}}
+ function isInteracting(){return !!activeGesture||wheelGesture||pointers.size>0;}
  function resize(){
   if(destroyed||root.hidden)return;
+  if(isInteracting()){resizePending=true;return;}
+  resizePending=false;
   const width=Math.max(1,root.clientWidth||innerWidth||1),height=Math.max(1,root.clientHeight||innerHeight||1);
   views.forEach(view=>{try{view.chart.resize(width,height);}catch(error){console.warn('[Vegas Kline] resize failed',error);}});
   // A layout resize must never become a user zoom. Reapply the canonical viewport.
   views.forEach(apply);
  }
  function scheduleResize(){
-  if(root.hidden||resizeFrame||destroyed)return;
+  if(root.hidden||destroyed)return;
+  if(isInteracting()){resizePending=true;return;}
+  if(resizeFrame)return;
   resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;resize();});
  }
  const resizeObserver='ResizeObserver'in window?new ResizeObserver(scheduleResize):null;
@@ -138,6 +143,7 @@ function create(root,layers,LWC,getActive){
   activeGesture=null;wheelGesture=false;pendingPoints.clear();
   commit(view);
   emit('vr-gesture-end',kind);
+  if(resizePending)scheduleResize();
  }
  function currentRange(view){const r=view.chart.timeScale().getVisibleLogicalRange();return r&&r.to>r.from?{from:r.from,to:r.to,width:r.to-r.from}:null;}
  function applyRange(view,from,to){
