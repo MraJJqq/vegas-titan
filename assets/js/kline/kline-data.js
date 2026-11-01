@@ -165,15 +165,14 @@ async function history(symbol,period,firstRows){
   const seed=cachedRows.length>firstRows.length?cachedRows:firstRows;
   const ctx=await context(symbol,period),all=new Map(seed.map(row=>[row.time,row]));
   let oldest=Math.min(...all.keys()),endTime=oldest*1000-1,reachedHistoryStart=false;
-  let paginationStopped=false;
   while(true){
    const params={...ctx.historyParams,endTime:String(endTime)},rows=normalize(await request(ctx.history+'?'+new URLSearchParams(params)));
    if(!rows.length){reachedHistoryStart=true;break;}
    let added=0;rows.forEach(row=>{if(!all.has(row.time)){all.set(row.time,row);added++;}});
    const nextOldest=Math.min(...rows.map(row=>row.time));
-   if(!Number.isFinite(nextOldest)||nextOldest>=oldest){paginationStopped=true;break;}
+   if(!Number.isFinite(nextOldest)||nextOldest>=oldest)break;
    oldest=nextOldest;endTime=oldest*1000-1;
-   if(!added){paginationStopped=true;break;}
+   if(!added)break;
   }
   const latestRows=cache.get(key)?.rows||[];latestRows.forEach(row=>all.set(row.time,row));
   const result=[...all.values()].sort((a,b)=>a.time-b.time),oldRows=cache.get(key)?.rows||[];
