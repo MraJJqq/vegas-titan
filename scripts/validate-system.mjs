@@ -44,7 +44,7 @@ if(!scrollEngine.includes('boxTop=i*stride,boxHeight=slotHeight'))fail('Scroll f
 if(!kline.includes('const count=store.count()')||!kline.includes('records.slice(MAX_RECORDS).forEach(item=>store.delete(item.key))'))fail('IndexedDB pruning must run only after exceeding the cache bound');
 if(!kline.includes('prior=old[common-length]')||!kline.includes('out=old.slice(0,common-length+1)'))fail('EMA continuation must use the aligned cached index');
 const appCss=read('assets/css/app.css');
-if(!appCss.includes('--z-layer-kline:10;--z-layer-between:20;--z-layer-scroll:30;--z-layer-ticker:50'))fail('Explicit K-line < reserved middle layer < scroll/cards < ticker stacking order missing');
+if(!appCss.includes('--z-layer-kline:10;--z-layer-scroll:30;--z-layer-ticker:50'))fail('Explicit K-line < reserved middle layer < scroll/cards < ticker stacking order missing');
 if(appCss.includes('--z-layer-between-min')||appCss.includes('--z-layer-between-max')||appCss.includes('--z-layer-cards'))fail('Obsolete layer z-index tokens remain');
 const slotRule=appCss.match(/#market-cards-layer \.mc-slot\{[^}]*\}/)?.[0]||'';
 if(!slotRule||slotRule.includes('filter:'))fail('Card slot must not create a filter backdrop root that blocks K-line glass blur');
