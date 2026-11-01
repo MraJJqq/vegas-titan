@@ -50,8 +50,11 @@ function mount(root,slots){
  function focus(){
   measure();
   const height=root.clientHeight;if(!height||!stride)return;
-  const top=root.scrollTop,first=clamp(Math.floor(top/Math.max(1,stride))-2,0,ordered.length-1);
-  const last=clamp(Math.ceil((top+height)/Math.max(1,stride))+2,0,ordered.length);
+  const top=root.scrollTop;
+  // One-slot look-ahead is sufficient: IntersectionObserver starts decorative
+  // animations at actual entry, while distant off-screen slots need no style work.
+  const first=clamp(Math.floor(top/Math.max(1,stride))-1,0,ordered.length-1);
+  const last=clamp(Math.ceil((top+height)/Math.max(1,stride))+1,0,ordered.length);
   const center=top+height/2,range=Math.max(1,height*.58),fadeRange=Math.max(1,height*.5);
   const key=first+':'+last+':'+Math.round(top/2);
   if(key===lastFocusRange)return;
