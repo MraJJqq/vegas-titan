@@ -35,6 +35,7 @@ const files=Object.freeze({
 });
 const base='./assets/logos/';
 const loaded=new Map();
+const elementRequests=new WeakMap();
 function load(symbol){
  const key=String(symbol||'').toUpperCase();
  const url=get(key);
@@ -42,15 +43,29 @@ function load(symbol){
  if(loaded.has(key))return loaded.get(key);
  const promise=new Promise(resolve=>{
   const img=new Image();img.decoding='async';
-  img.onload=()=>{if(typeof img.decode==='function')img.decode().catch(()=>{}).finally(()=>resolve(url));else resolve(url);};
+  img.onload=()=>{if(typeof img.decode==='function')img.decode().then(()=>resolve(url)).catch(()=>{loaded.delete(key);resolve('');});else resolve(url);};
   img.onerror=()=>{loaded.delete(key);resolve('');};
   img.src=url;
  });
  loaded.set(key,promise);return promise;
 }
+function show(img,symbol){
+ if(!img)return Promise.resolve(false);
+ const key=String(symbol||'').toUpperCase();
+ const request=(elementRequests.get(img)||0)+1;elementRequests.set(img,request);
+ img.dataset.ready='false';img.hidden=true;
+ return load(key).then(async url=>{
+  if(!url||!img.isConnected||elementRequests.get(img)!==request)return false;
+  if(img.getAttribute('src')!==url)img.src=url;
+  try{if(typeof img.decode==='function')await img.decode();else if(!img.complete||!img.naturalWidth)await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;});}
+  catch{if(elementRequests.get(img)===request){img.hidden=true;img.dataset.ready='false';}return false;}
+  if(!img.isConnected||elementRequests.get(img)!==request)return false;
+  img.dataset.ready='true';img.hidden=false;return true;
+ }).catch(()=>false);
+}
 function get(symbol){const file=files[String(symbol||'').toUpperCase()];return file?base+file:'';}
 window.VegasIconRegistry=Object.freeze({
- get,load,
+ get,load,show,
  has(symbol){return Object.prototype.hasOwnProperty.call(files,String(symbol||'').toUpperCase());},
  symbols(){return Object.keys(files);}
 });
