@@ -148,7 +148,7 @@ function create(root,layers,LWC,getActive){
   resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;resize();});
  }
  const resizeObserver='ResizeObserver'in window?new ResizeObserver(scheduleResize):null;
- resizeObserver?.observe(root);window.addEventListener('resize',scheduleResize,{passive:true});
+ resizeObserver?.observe(root);window.addEventListener('resize',scheduleResize,{passive:true});window.addEventListener('orientationchange',scheduleResize,{passive:true});window.visualViewport?.addEventListener('resize',scheduleResize,{passive:true});
 
  const pointers=new Map(),pendingPoints=new Map();
  function emit(type,kind){root.dispatchEvent(new CustomEvent(type,{detail:{kind}}));}
@@ -274,7 +274,7 @@ function create(root,layers,LWC,getActive){
   if(resizeFrame)cancelAnimationFrame(resizeFrame);
   if(gestureFrame)cancelAnimationFrame(gestureFrame);
   pointers.clear();pendingPoints.clear();activeGesture=null;
-  save();resizeObserver?.disconnect();window.removeEventListener('resize',scheduleResize);
+  save();resizeObserver?.disconnect();window.removeEventListener('resize',scheduleResize);window.removeEventListener('orientationchange',scheduleResize);window.visualViewport?.removeEventListener('resize',scheduleResize);
   window.removeEventListener('pagehide',onPageHide);window.removeEventListener('blur',onBlur);
   document.removeEventListener('visibilitychange',onVisibility);
   views.forEach(view=>{view.chart.remove();view.gesture.remove();view.host.remove();});
