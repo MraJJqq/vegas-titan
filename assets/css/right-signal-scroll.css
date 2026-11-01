@@ -1,5 +1,5 @@
 /* 第五层：正式信号K线渐变轮播双图层 */
-#vegas-right-scroll{position:fixed;z-index:var(--z-layer-kline);inset:0;width:100%;height:100vh;height:100dvh;overflow:hidden;pointer-events:auto;background:transparent}
+#vegas-right-scroll{position:fixed;z-index:var(--z-layer-kline);inset:0;width:100%;height:100vh;height:100dvh;min-height:100svh;overflow:hidden;pointer-events:auto;background:transparent}
 #vegas-right-scroll[hidden]{display:none}
 #vegas-right-scroll .vr-single{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 #vegas-right-scroll .vr-fade-layer{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;opacity:0;pointer-events:none;z-index:1}
