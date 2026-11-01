@@ -76,7 +76,10 @@ function normalize(rows){
 }
 async function context(symbol,period){
  if(period!==PERIOD)throw Error('Bitget K-line only supports 4H');
- const contract=String(symbol||'').toUpperCase().replace(/USDT$/,'')+'USDT';
+ const raw=String(symbol||'').toUpperCase();
+ const universe=Array.isArray(window.VegasMarketUniverse)?window.VegasMarketUniverse:[];
+ const matched=universe.find(item=>String(item.symbol||'').toUpperCase()===raw||String(item.contract||'').toUpperCase()===raw);
+ const contract=matched?String(matched.contract).toUpperCase():(raw.endsWith('USDT')?raw:raw+'USDT');
  return{
   latest:'/api/v2/mix/market/candles',
   history:'/api/v2/mix/market/history-candles',
