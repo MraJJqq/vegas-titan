@@ -65,6 +65,8 @@ window.VegasIconRegistry=Object.freeze({
  symbols(){return Object.keys(files);},
  warm
 });
-if(document.readyState==='complete')warm();
-else window.addEventListener('load',warm,{once:true,passive:true});
+if(!window.VegasRuntimeMode?.standalone){
+ if(document.readyState==='complete')warm();
+ else window.addEventListener('load',warm,{once:true,passive:true});
+}
 })();
