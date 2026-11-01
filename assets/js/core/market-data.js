@@ -5,15 +5,18 @@ if(window.VegasMarketData)return;
 const API='https://api.bitget.com',REFRESH_MS=15000,MINI_REFRESH_MS=window.VegasRuntimeMode?.standalone?90000:60000;
 let stockMap=null,stockMapAt=0,stockMapPromise=null,refreshTimer=0,refreshing=false,stopped=false;
 const miniLastAt=new Map(),miniInFlight=new Set();
-const snapshots=new Map();
+const snapshots=new Map(),activeControllers=new Set();
+function abortActiveRequests(){activeControllers.forEach(controller=>controller.abort());activeControllers.clear();}
 function request(path){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+ activeControllers.add(controller);
+ if(window.VegasRuntimeMode?.standalone&&document.hidden)controller.abort();
  return fetch(API+path,{cache:'no-store',signal:controller.signal}).then(async response=>{
   if(!response.ok)throw Error('Bitget HTTP '+response.status);
   const json=await response.json();
   if(json.code!=='00000'||!Array.isArray(json.data))throw Error(json.msg||'Bitget data invalid');
   return json.data;
- }).finally(()=>clearTimeout(timer));
+ }).finally(()=>{clearTimeout(timer);activeControllers.delete(controller);});
 }
 function getStockMap(){
  if(stockMap&&Date.now()-stockMapAt<300000)return Promise.resolve(stockMap);
@@ -114,7 +117,7 @@ function start(instruments,onUpdate,getVisibleSymbols){
  refresh(instruments,onUpdate,getVisibleSymbols).catch(error=>console.warn('[Vegas Market Data] initial refresh failed:',error)).finally(()=>schedule(instruments,onUpdate,getVisibleSymbols));
 }
 function onVisibility(){
- if(document.hidden){if(refreshTimer)clearTimeout(refreshTimer);refreshTimer=0;return;}
+ if(document.hidden){if(refreshTimer)clearTimeout(refreshTimer);refreshTimer=0;if(window.VegasRuntimeMode?.standalone)abortActiveRequests();return;}
  refreshTimer=0;refresh(instrumentsRef,updateRef,visibleRef).catch(error=>console.warn('[Vegas Market Data] resume failed:',error)).finally(()=>schedule(instrumentsRef,updateRef,visibleRef));
 }
 let instrumentsRef=[],updateRef=null,visibleRef=null;
@@ -125,7 +128,7 @@ function mount(instruments,onUpdate,getVisibleSymbols){
  return destroy;
 }
 function destroy(){
- stopped=true;if(refreshTimer)clearTimeout(refreshTimer);refreshTimer=0;
+ stopped=true;if(refreshTimer)clearTimeout(refreshTimer);refreshTimer=0;if(window.VegasRuntimeMode?.standalone)abortActiveRequests();
  document.removeEventListener('visibilitychange',onVisibility);
 }
 window.VegasMarketData={mount,destroy,getStockMap,request};
