@@ -164,7 +164,10 @@ function create(root,layers,LWC,getActive){
   if(pointers.size===1)activeGesture={kind:'drag',view,base:r,startX:event.clientX,pixelsPerBar:rect.width/Math.max(1,r.width)};
   else if(pointers.size===2){
    const p=[...pointers.values()];
-   activeGesture={kind:'pinch',view,base:r,startDistance:Math.max(1,Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)),startCenter:(p[0].x+p[1].x)/2,rectWidth:rect.width};
+   const startCenter=(p[0].x+p[1].x)/2;
+   const rectLeft=rect.left;
+   const startCenterRatio=clamp((startCenter-rectLeft)/Math.max(1,rect.width),0,1);
+   activeGesture={kind:'pinch',view,base:r,startDistance:Math.max(1,Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)),anchorLogical:r.from+startCenterRatio*r.width,rectLeft,rectWidth:rect.width};
   }
  }
  function processGestureFrame(){
@@ -179,9 +182,9 @@ function create(root,layers,LWC,getActive){
    const distance=Math.max(1,Math.hypot(first.x-second.x,first.y-second.y));
    const center=(first.x+second.x)/2;
    const width=clamp(g.base.width*g.startDistance/distance,2,5000);
-   const shift=(g.startCenter-center)/Math.max(1,g.rectWidth)*g.base.width;
-   const mid=(g.base.from+g.base.to)/2+shift;
-   applyRange(g.view,mid-width/2,mid+width/2);
+   const centerRatio=clamp((center-g.rectLeft)/Math.max(1,g.rectWidth),0,1);
+   const from=g.anchorLogical-centerRatio*width;
+   applyRange(g.view,from,from+width);
   }
   if(wheelTarget){applyRange(wheelTarget.view,wheelTarget.from,wheelTarget.to);wheelTarget=null;}
  }
