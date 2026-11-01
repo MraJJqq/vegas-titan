@@ -43,7 +43,7 @@ if(!view.includes('item.lastPriceValue!==item.price')||!view.includes('item.form
 if(!scrollEngine.includes('boxTop=i*stride,boxHeight=slotHeight'))fail('Scroll focus must use cached uniform slot geometry');
 if(!kline.includes('const count=store.count()')||!kline.includes('records.slice(MAX_RECORDS).forEach(item=>store.delete(item.key))'))fail('IndexedDB pruning must run only after exceeding the cache bound');
 if(!kline.includes('prior=old[common-length]')||!kline.includes('out=old.slice(0,common-length+1)'))fail('EMA continuation must use the aligned cached index');
-if(!kline.includes('WARMUP_BARS=6760')||!kline.includes('historyChecked:result.length>=WARMUP_BARS||reachedHistoryStart'))fail('EMA warmup must verify 6760 bars or confirmed Bitget history exhaustion');
+if(kline.includes('WARMUP_BARS')||kline.includes('warmupBars')||!kline.includes('historyChecked:true'))fail('K-line history must load once without a fixed EMA warmup target');
 if(!kline.includes('record.historyExhausted')||!kline.includes('historyExhausted:reachedHistoryStart'))fail('Verified history exhaustion must survive IndexedDB cache reloads');
 if(kline.includes('record.emas')||kline.includes('emas[length]'))fail('Persisted EMA values must not bypass candle-history recalculation');
 if(!kline.includes('row.time%14400===0'))fail('4H candle timestamps must align to UTC four-hour boundaries');
@@ -62,9 +62,9 @@ if(!(klinePos>=0&&scrollPos>klinePos&&tickerPos>scrollPos))fail('DOM layer order
 if(!html.includes('app.css?v=card-glass-backdrop-fix-1')||!html.includes('right-signal-scroll.css?v=floating-logo-upper-1'))fail('Card glass backdrop or layer hit-test cache version missing');
 if(!kline.includes("productType:'USDT-FUTURES'")||kline.includes("category:'SPOT'")||kline.includes("stock-info"))fail('K-line data source must use Bitget USDT Futures only');
 if(!controller.includes("manualPausedRemaining")||!controller.includes("manualDeadline=Date.now()+remaining"))fail('Manual K-line timer background pause/resume missing');
-if(controller.includes("loadLayer(1-active,queue[index],{completeHistory:false})"))fail('Next-symbol prewarm must complete 4H history for red-peak EMA warmup');
-if(!controller.includes('function preloadNext()')||!controller.includes('loadLayer(1-active,queue[index]);'))fail('Full-history next-symbol prewarm missing');
-if(!html.includes('market-data.js?v=visible-ticker-index-2')||!html.includes('card-view.js?v=card-render-guard-2')||!html.includes('kline-data.js?v=ema-history-integrity-2')||!html.includes('kline-chart.js?v=chart-options-cache-2')||!html.includes('kline-controller.js?v=redpeak-prewarm-2'))fail('Optimized runtime module cache versions missing');
+if(controller.includes('warmupBars')||controller.includes('红峰历史预热')||controller.includes('预热目标'))fail('K-line controller must not enforce red-peak warmup');
+if(!controller.includes('function preloadNext()')||!controller.includes('loadLayer(1-active,queue[index]);'))fail('Next-symbol data preload contract missing');
+if(!html.includes('market-data.js?v=visible-ticker-index-2')||!html.includes('card-view.js?v=card-render-guard-2')||!html.includes('kline-data.js?v=all-available-history-1')||!html.includes('kline-chart.js?v=chart-options-cache-2')||!html.includes('kline-controller.js?v=no-warmup-1'))fail('Optimized runtime module cache versions missing');
 for(const p of ['assets/js/signals/v9-events.js','assets/js/core/market-universe.js','assets/js/core/market-data.js','assets/js/cards/card-view.js','assets/js/scroll/scroll-engine.js','assets/js/cards/card-system.js','assets/js/kline/kline-data.js'])if(!html.includes(p))fail('Entry point missing '+p);
 if(!html.includes("chart.src='./assets/js/kline/kline-chart.js")||!html.includes("app.src='./assets/js/kline/kline-controller.js"))fail('Dynamic K-line loader missing');
 const signalReader=read('assets/js/signals/v9-events.js');
