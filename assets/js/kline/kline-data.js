@@ -1,7 +1,7 @@
 /* Layer 5 Bitget USDT-Futures 4H candle engine. IndexedDB persistence + incremental EMA cache. */
 (function(){
 'use strict';
-const API='https://api.bitget.com',WARMUP_BARS=4000,PERIOD='4H';
+const API='https://api.bitget.com',WARMUP_BARS=6760,PERIOD='4H';
 const DB_NAME='vegas-titan-kline-cache',DB_VERSION=1,STORE='series',MAX_RECORDS=36;
 const cache=new Map(),inflight=new Map(),backfills=new Map(),emaCache=new Map();
 let dbPromise=null;
@@ -72,7 +72,7 @@ async function request(path){
 function normalize(rows){
  return rows.filter(row=>Array.isArray(row)&&row.slice(0,5).every(v=>Number.isFinite(+v)&&+v>0))
  .map(row=>({time:Math.floor(+row[0]/1000),open:+row[1],high:+row[2],low:+row[3],close:+row[4]}))
- .filter(row=>row.time>0&&row.high>=Math.max(row.open,row.close)&&row.low<=Math.min(row.open,row.close));
+ .filter(row=>row.time>0&&row.time%14400===0&&row.high>=Math.max(row.open,row.close)&&row.low<=Math.min(row.open,row.close));
 }
 async function context(symbol,period){
  if(period!==PERIOD)throw Error('Bitget K-line only supports 4H');
