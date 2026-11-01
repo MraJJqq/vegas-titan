@@ -1,7 +1,7 @@
 /* Layer 5 Bitget USDT-Futures 4H candle engine. IndexedDB persistence + incremental EMA cache. */
 (function(){
 'use strict';
-const API='https://api.bitget.com',WARMUP_BARS=6760,PERIOD='4H';
+const API='https://api.bitget.com',PERIOD='4H';
 const DB_NAME='vegas-titan-kline-cache',DB_VERSION=1,STORE='series',MAX_RECORDS=36;
 const cache=new Map(),inflight=new Map(),backfills=new Map(),emaCache=new Map();
 let dbPromise=null;
@@ -49,7 +49,7 @@ function hydrate(key,record){
  if(!record||!Array.isArray(record.rows))return;
  const rows=record.rows.filter(row=>row&&Number.isFinite(row.time)&&Number.isFinite(row.close));
  if(!rows.length)return;
- cache.set(key,{rows,at:0,historyChecked:!!record.historyChecked&&(rows.length>=WARMUP_BARS||!!record.historyExhausted),historyExhausted:!!record.historyExhausted});
+ cache.set(key,{rows,at:0,historyChecked:!!record.historyChecked,historyExhausted:!!record.historyExhausted});
  // EMA arrays are deliberately rebuilt from the candle series.
  // Persisted indicator values may belong to a different/revised candle history.
 
@@ -110,7 +110,7 @@ function updateIndicators(symbol,oldRows,newRows){
 function mergeRows(symbol,period,oldRows,incoming){
  const merged=new Map(oldRows.map(row=>[row.time,row]));incoming.forEach(row=>merged.set(row.time,row));
  const rows=[...merged.values()].sort((a,b)=>a.time-b.time);
- if(rows.length>WARMUP_BARS+1000)rows.splice(0,rows.length-(WARMUP_BARS+1000));
+ 
  updateIndicators(symbol,oldRows,rows);return rows;
 }
 async function refreshLatest(symbol,period,key){
@@ -153,22 +153,22 @@ async function history(symbol,period,firstRows){
   const seed=cachedRows.length>firstRows.length?cachedRows:firstRows;
   const ctx=await context(symbol,period),all=new Map(seed.map(row=>[row.time,row]));
   let oldest=Math.min(...all.keys()),endTime=oldest*1000-1,reachedHistoryStart=false;
-  const maxPages=Math.ceil(WARMUP_BARS/ctx.pageLimit)+2;
-  for(let page=0;page<maxPages&&all.size<WARMUP_BARS;page++){
+  const maxPages=10000; let paginationStopped=false;
+  for(let page=0;page<maxPages;page++){
    const params={...ctx.historyParams,endTime:String(endTime)},rows=normalize(await request(ctx.history+'?'+new URLSearchParams(params)));
    if(!rows.length){reachedHistoryStart=true;break;}
    let added=0;rows.forEach(row=>{if(!all.has(row.time)){all.set(row.time,row);added++;}});
    const nextOldest=Math.min(...rows.map(row=>row.time));
-   if(!Number.isFinite(nextOldest)||nextOldest>=oldest)break;
+   if(!Number.isFinite(nextOldest)||nextOldest>=oldest){paginationStopped=true;break;}
    oldest=nextOldest;endTime=oldest*1000-1;
-   if(!added)break;
+   if(!added){paginationStopped=true;break;}
   }
   const latestRows=cache.get(key)?.rows||[];latestRows.forEach(row=>all.set(row.time,row));
   const result=[...all.values()].sort((a,b)=>a.time-b.time),oldRows=cache.get(key)?.rows||[];
   updateIndicators(symbol,oldRows,result);
-  // Mark complete only when the warmup target is reached or Bitget confirms
-  // there is no older history. A short/overlapping page is not proof of completion.
-  cache.set(key,{rows:result,at:Date.now(),historyChecked:result.length>=WARMUP_BARS||reachedHistoryStart,historyExhausted:reachedHistoryStart});
+  // One pass only: stop at Bitget's oldest available page, or stop safely on pagination stall.
+  // Never repeat warmup merely because EMA676 has insufficient history.
+  cache.set(key,{rows:result,at:Date.now(),historyChecked:true,historyExhausted:reachedHistoryStart});
   persist(symbol,result);
   while(cache.size>90)cache.delete(cache.keys().next().value);return result;
  })();
@@ -182,5 +182,5 @@ function ema(rows,length,symbol){
  for(let i=length;i<rows.length;i++){value=rows[i].close*factor+value*(1-factor);out.push({time:rows[i].time,value});}
  return out;
 }
-window.VegasKlineData={load:latest,complete:history,ema,warmupBars:WARMUP_BARS,periods:[PERIOD],emas:[12,36,43,144,169,576,676],cache:{type:'IndexedDB',period:PERIOD}};
+window.VegasKlineData={load:latest,complete:history,ema,historyMode:'all-available',periods:[PERIOD],emas:[12,36,43,144,169,576,676],cache:{type:'IndexedDB',period:PERIOD}};
 })();
