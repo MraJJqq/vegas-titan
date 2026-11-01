@@ -26,7 +26,7 @@ const TRANSITION_MS=5000;
 const MANUAL_TOTAL_MS=10000;
 const REVEAL_MS=1000;
 const INITIAL_HOLD_MS=4000;
-const REFRESH_MS=60000;
+const REFRESH_MS=window.VegasRuntimeMode?.standalone?90000:60000;
 
 let queue=[];
 let currentIndex=0;
