@@ -45,6 +45,7 @@ let manualSymbol='';
 let manualDeadline=0;
 let manualPausedRemaining=null;
 let generation=0;
+let headerRequest=0;
 let initialShown=false;
 let refreshPending=false;
 let chart=null;
@@ -111,11 +112,16 @@ function canonicalSymbol(value){
 }
 function syncHeader(){
  const view=views[active],symbol=canonicalSymbol(view?.symbol);if(!view?.hasData||!symbol)return;
+ const request=++headerRequest;
  title.textContent=symbol;
  const registry=window.VegasIconRegistry;
  if(logo){
-  if(registry?.show)registry.show(logo,symbol);
-  else{
+  if(registry?.load&&registry?.show){
+   registry.load(symbol).then(url=>{
+    if(request!==headerRequest||!logo.isConnected)return;
+    registry.show(logo,symbol,url);
+   });
+  }else{
    logo.classList.remove('is-logo-ready');
    logo.style.backgroundImage='none';
   }
