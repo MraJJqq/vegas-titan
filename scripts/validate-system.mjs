@@ -17,6 +17,7 @@ if(!market.includes('neededFutures')||!market.includes('neededSpots'))fail('Mark
 const kline=read('assets/js/kline/kline-data.js'),scrollEngine=read('assets/js/scroll/scroll-engine.js'),view=read('assets/js/cards/card-view.js'),card=read('assets/js/cards/card-system.js'),controller=read('assets/js/kline/kline-controller.js');
 if(!scrollEngine.includes("removeEventListener('touchend',onTouchEnd,true)")||!scrollEngine.includes("removeEventListener('touchcancel',onTouchCancel,true)"))fail('Scroll touch listener teardown missing');
 if(!scrollEngine.includes('event.touches.length!==1')||!scrollEngine.includes('event.touches.length===0'))fail('Card scrolling must ignore multi-touch and wait for all fingers to lift');
+if(!scrollEngine.includes("state.mode==='handoff'")||!scrollEngine.includes('handoffStartSpeed')||!scrollEngine.includes('state.handoffDuration'))fail('Manual-to-auto card scrolling must use a continuous velocity handoff');
 if(scrollEngine.includes('--mc-depth-blur'))fail('Unused card depth-blur state remains in scroll engine');
 if(controller.includes('autoPhase')||controller.includes('targetIndex')||controller.includes('transitionTarget'))fail('Unused K-line controller state remains');
 if(!scrollEngine.includes("state.timer=setTimeout(schedule,33)")||!scrollEngine.includes("state.mode==='touch')return")||!scrollEngine.includes('focus();'))fail('Adaptive scroll scheduler or direct touch-frame rendering missing');
@@ -56,7 +57,7 @@ const slotRule=appCss.match(/#market-cards-layer \.mc-slot\{[^}]*\}/)?.[0]||'';
 if(!slotRule||slotRule.includes('filter:'))fail('Card slot must not create a filter backdrop root that blocks K-line glass blur');
 if(!appCss.includes('#market-cards-layer{--up:#2ee6a6;position:fixed;z-index:var(--z-layer-scroll);')||!appCss.includes('#market-cards-layer .mc-columns{position:absolute;inset:0 auto 0 0;width:min(100vw,380px);min-width:0;min-height:0;overflow:visible;pointer-events:none;')||!appCss.includes('#market-cards-layer .mc-side{position:relative;z-index:2;'))fail('Only the real card scroll viewport may receive pointer/touch input above K-line');
 const html=read('index.html');
-if(!html.includes('scroll-engine.js?v=single-touch-guard-1'))fail('Single-touch scroll guard cache version missing');
+if(!html.includes('scroll-engine.js?v=velocity-handoff-1'))fail('Single-touch scroll guard cache version missing');
 const klinePos=html.indexOf('id="vegas-right-scroll"');
 const scrollPos=html.indexOf('id="market-cards-layer"');
 const tickerPos=html.indexOf('id="vegas-signal-ticker"');
