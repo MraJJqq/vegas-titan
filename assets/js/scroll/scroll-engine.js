@@ -182,6 +182,23 @@ function mount(root,slots){
   if(state.touching)endTouch(true);
   else{state.mode='auto';state.wheelSpeed=state.touchSpeed=0;state.autoDelayUntil=performance.now()+250;requestFrame();}
  }
+ function resumeAfterSelection(){
+  // A card tap is not a scroll gesture. Clear stale touch state without
+  // restarting the auto timer on every rapid selection.
+  state.touchPending=false;
+  if(state.mode==='touch'||state.mode==='wheel'||state.touching||state.dragging){
+   state.touching=false;state.dragging=false;
+   state.touchSpeed=state.wheelSpeed=0;
+   state.wheelTarget=root.scrollTop;
+   state.mode='auto';
+   state.lastScroll=root.scrollTop;
+   state.autoDelayUntil=performance.now()+180;
+   cancelFrame();
+   requestFrame();
+   return;
+  }
+  if(state.mode==='auto'&&!state.raf&&!state.timer)requestFrame();
+ }
  function onPageHide(){cancelFrame();state.touchPending=false;state.touching=false;state.dragging=false;state.mode='auto';}
  function onWindowBlur(){resetTouch();}
  function onScroll(){
@@ -223,7 +240,7 @@ function mount(root,slots){
  },{root,threshold:.01}):null;
  ordered.forEach(node=>intersection?intersection.observe(node):node.classList.add('mc-in-view'));
  measure();focus();requestFrame();
- return{refresh:onResize,destroy(){
+ return{refresh:onResize,resumeAfterSelection,destroy(){
   alive=false;cancelFrame();observer?.disconnect();intersection?.disconnect();
   root.removeEventListener('wheel',onWheel);root.removeEventListener('scroll',onScroll);
   root.removeEventListener('touchstart',onTouchStart);root.removeEventListener('touchmove',onTouchMove);
