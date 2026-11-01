@@ -67,6 +67,14 @@ function create(root,layers,LWC,getActive){
   const view=views[index];if(!view||!Array.isArray(rows)||!rows.length)return;
   const sameSymbol=view.symbol===symbol&&view.period==='4H'&&view.rows.length>0;
   const old=view.rows,emaRows=EMA.map(length=>window.VegasKlineData.ema(rows,length,symbol));
+  let historyOffset=0,historyRange=null;
+  if(sameSymbol&&view===activeView()&&rows.length>old.length&&old.length){
+   const firstIndex=rows.findIndex(row=>row.time===old[0].time);
+   if(firstIndex>0&&firstIndex+old.length<=rows.length&&old.every((row,i)=>rows[firstIndex+i].time===row.time)){
+    historyOffset=firstIndex;
+    historyRange=currentRange(view);
+   }
+  }
   let common=0;
   if(sameSymbol){
    const limit=Math.min(old.length,rows.length);
@@ -81,7 +89,19 @@ function create(root,layers,LWC,getActive){
    view.candle.setData(rows);view.lines.forEach((series,i)=>series.setData(emaRows[i]));
   }
   view.rows=rows;view.symbol=symbol;view.period='4H';
-  apply(view);
+  if(historyOffset&&historyRange){
+   const shifted={from:historyRange.from+historyOffset,to:historyRange.to+historyOffset};
+   try{
+    view.chart.timeScale().setVisibleLogicalRange(shifted);
+    appliedRanges.set(view,shifted);
+    viewport.visibleBars=clamp(shifted.to-shifted.from,2,5000);
+    viewport.rightGap=clamp(rows.length-1-shifted.to,-5000,50000);
+    save();
+    applyPeers(view);
+   }catch(error){console.warn('[Vegas Kline] preserve history viewport failed',error);apply(view);}
+  }else{
+   apply(view);
+  }
  }
  function sync(from,to){
   const source=views[from],target=views[to];
