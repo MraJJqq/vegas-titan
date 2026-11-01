@@ -107,7 +107,10 @@
   }
   async function refreshV9State(){
     if(document.hidden)return;
-    if(refreshInProgress){refreshRequested=true;return;}
+    if(refreshInProgress){
+      if(window.VegasRuntimeMode?.standalone)refreshRequested=true;
+      return;
+    }
     refreshInProgress=true;
     try{
       const state=await fetchStateJson();
