@@ -30,7 +30,9 @@ function mount(root,instruments,onSelect){
   item.nodes={card,price:card.querySelector('.mc-price'),change:card.querySelector('.mc-chg'),chart:card.querySelector('.mc-chart')};
   const icon=card.querySelector('.mc-ico');
   const registry=window.VegasIconRegistry;
-  if(icon&&registry?.show)registry.show(icon,item.symbol);
+  if(icon&&registry?.load&&registry?.show){
+   registry.load(item.symbol).then(url=>registry.show(icon,item.symbol,url));
+  }
  });
  const chartOwners=new WeakMap();
  items.forEach(item=>chartOwners.set(item.nodes.chart,item));
