@@ -130,7 +130,8 @@ function completeHistory(index,symbol,first,requestId){
  view.historyLoading=true;
  data.complete(symbol,'4H',first).then(rows=>{
   if(view.requestId!==requestId||view.symbol!==canonicalSymbol(symbol)||view.period!=='4H')return;
-  if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'){
+  if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'||
+     (window.VegasRuntimeMode?.standalone&&index!==active)){
    view.pendingRows=rows;view.pendingSymbol=symbol;view.pendingPeriod='4H';
    view.historyComplete=true;
    return;
@@ -152,6 +153,7 @@ function loadLayer(index,symbol,options={}){
  const requestId=(view.requestId||0)+1;
  view.requestId=requestId;
  view.historyLoading=false;
+ view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;
  return data.load(symbol,timeframe).then(first=>{
   if(view.requestId!==requestId)return false;
   chart.setData(index,first,symbol,timeframe);
@@ -196,6 +198,7 @@ function applyDeferredRefresh(){
   view.pendingRows=null;
   view.pendingSymbol=null;
   view.pendingPeriod=null;
+  if(!view.hasData||canonicalSymbol(view.symbol)!==canonicalSymbol(symbol)||view.period!==timeframe)return;
   chart.setData(index,rows,symbol,timeframe);
   view.rows=rows;
   view.symbol=canonicalSymbol(symbol);
@@ -451,6 +454,7 @@ function hide(){
   view.requestId=(view.requestId||0)+1;
   view.hasData=false;
   view.symbol='';
+  view.pendingRows=null;view.pendingSymbol=null;view.pendingPeriod=null;
  });
  if(chart){
   chart.capture(views[active]);
