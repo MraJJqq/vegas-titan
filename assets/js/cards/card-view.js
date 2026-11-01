@@ -54,41 +54,49 @@ function mount(root,instruments,onSelect){
   const card=node||(event.target instanceof Element?event.target.closest('.mc-card[data-symbol]'):null);
   return card&&root.contains(card)?card:null;
  }
- // Unified pointer gesture: one pointer sequence, one activation, no synthetic-click dependency.
- let activePointer=null;
- const thresholds={mouse:6,pen:9,touch:7};
- function onPointerDown(event){
-  if(activePointer||!event.isPrimary||event.button!==0)return;
+ // Mouse and pen use the browser's native click activation.
+ // Touch uses a separate pointer sequence so scrolling and taps remain distinct.
+ let activeTouch=null,lastTouchActivation=null;
+ function onTouchPointerDown(event){
+  if(activeTouch||event.pointerType!=='touch'||!event.isPrimary)return;
   const card=cardFromEvent(event);if(!card)return;
-  activePointer={id:event.pointerId,card,symbol:card.dataset.symbol,
-   x:event.clientX,y:event.clientY,type:event.pointerType||'mouse',moved:false};
-  try{root.setPointerCapture(event.pointerId);}catch(_){}
+  activeTouch={id:event.pointerId,card,symbol:card.dataset.symbol,x:event.clientX,y:event.clientY,moved:false};
  }
- function onGestureMove(event){
-  const state=activePointer;
-  if(!state||event.pointerId!==state.id)return;
+ function onTouchPointerMove(event){
+  const state=activeTouch;if(!state||event.pointerId!==state.id)return;
   const dx=event.clientX-state.x,dy=event.clientY-state.y;
-  if(dx*dx+dy*dy>Math.pow(thresholds[state.type]??8,2))state.moved=true;
+  if(dx*dx+dy*dy>=64)state.moved=true;
  }
- function clearPointer(event){
-  if(!activePointer||event.pointerId!==activePointer.id)return null;
-  const state=activePointer;activePointer=null;return state;
+ function clearTouchPointer(event){
+  if(!activeTouch||event.pointerId!==activeTouch.id)return null;
+  const state=activeTouch;activeTouch=null;return state;
  }
- function onPointerUp(event){
-  const state=clearPointer(event);if(!state||state.moved)return;
-  if(!state.card.isConnected||!root.contains(state.card))return;
-  if(state.card.dataset.symbol!==state.symbol)return;
+ function onTouchPointerUp(event){
+  if(event.pointerType!=='touch')return;
+  const state=clearTouchPointer(event);if(!state||state.moved)return;
+  if(!state.card.isConnected||!root.contains(state.card)||state.card.dataset.symbol!==state.symbol)return;
   const releaseTarget=document.elementFromPoint(event.clientX,event.clientY);
   const releaseCard=releaseTarget instanceof Element?releaseTarget.closest('.mc-card[data-symbol]'):null;
   if(releaseCard!==state.card)return;
+  lastTouchActivation={card:state.card,time:Date.now(),x:event.clientX,y:event.clientY};
   select(state.symbol);
  }
- function onPointerCancel(event){clearPointer(event);}
- root.addEventListener('pointerdown',onPointerDown,true);
- root.addEventListener('pointermove',onGestureMove,true);
- root.addEventListener('pointerup',onPointerUp,true);
- root.addEventListener('pointercancel',onPointerCancel,true);
- root.addEventListener('lostpointercapture',onPointerCancel,true);
+ function onTouchPointerCancel(event){clearTouchPointer(event);}
+ function onClick(event){
+  const card=cardFromEvent(event);if(!card)return;
+  if(event.pointerType==='touch')return;
+  const touch=lastTouchActivation;
+  if(event.detail!==0&&touch&&touch.card===card&&Date.now()-touch.time<800&&
+   Math.hypot(event.clientX-touch.x,event.clientY-touch.y)<25){
+   lastTouchActivation=null;return;
+  }
+  select(card.dataset.symbol);
+ }
+ root.addEventListener('pointerdown',onTouchPointerDown,true);
+ root.addEventListener('pointermove',onTouchPointerMove,true);
+ window.addEventListener('pointerup',onTouchPointerUp,true);
+ window.addEventListener('pointercancel',onTouchPointerCancel,true);
+ root.addEventListener('click',onClick,true);
  let pointerRaf=0,pointerEvent=null;
  function onPointerMove(event){
   if(event.pointerType==='touch')return;
@@ -147,15 +155,12 @@ function mount(root,instruments,onSelect){
  }
  function destroy(){
   resizeObserver?.disconnect();root.removeEventListener('mc-slot-visibility',onSlotVisibility);
-  root.removeEventListener('pointerdown',onPointerDown,true);
-  root.removeEventListener('pointermove',onGestureMove,true);
-  root.removeEventListener('pointerup',onPointerUp,true);
-  root.removeEventListener('pointercancel',onPointerCancel,true);
-  root.removeEventListener('lostpointercapture',onPointerCancel,true);
-  if(activePointer){
-   try{if(root.hasPointerCapture(activePointer.id))root.releasePointerCapture(activePointer.id);}catch(_){}
-   activePointer=null;
-  }
+  root.removeEventListener('pointerdown',onTouchPointerDown,true);
+  root.removeEventListener('pointermove',onTouchPointerMove,true);
+  window.removeEventListener('pointerup',onTouchPointerUp,true);
+  window.removeEventListener('pointercancel',onTouchPointerCancel,true);
+  root.removeEventListener('click',onClick,true);
+  activeTouch=null;lastTouchActivation=null;
   root.removeEventListener('pointermove',onPointerMove);root.removeEventListener('pointerout',resetTilt);
   ['pointerleave','pointerup','pointercancel'].forEach(type=>root.removeEventListener(type,resetTilt));
   if(pointerRaf)cancelAnimationFrame(pointerRaf);
