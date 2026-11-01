@@ -89,6 +89,7 @@ const html=read('index.html');
 const runtimeRefs=[...html.matchAll(/(?:src|href)=[\"']([^\"']+)[\"']/g)].map(match=>match[1]).filter(ref=>ref.startsWith('./assets/'));
 for(const ref of runtimeRefs){const path=ref.split('?')[0].replace(/^\.\//,'');if(!fs.existsSync(path))fail('Referenced runtime asset missing: '+path);}
 if(!runtimeRefs.some(ref=>ref.startsWith('./assets/js/scroll/scroll-engine.js?')))fail('Scroll engine entry reference missing');
+if(!html.includes('scroll-engine.js?v=scroll-cleanup-1'))fail('Cleaned scroll engine cache key must be refreshed');
 const klinePos=html.indexOf('id="vegas-right-scroll"');
 const scrollPos=html.indexOf('id="market-cards-layer"');
 const tickerPos=html.indexOf('id="vegas-signal-ticker"');
