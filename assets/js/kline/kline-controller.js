@@ -173,7 +173,9 @@ function onKlineDataUpdated(event){
  const detail=event.detail||{};
  const symbol=canonicalSymbol(detail.symbol);
  if(detail.period!=='4H'||!Array.isArray(detail.rows)||!symbol)return;
- const index=views.findIndex(view=>canonicalSymbol(view.symbol)===symbol&&view.period==='4H'&&view.hasData);
+ const activeView=views[active];
+ const index=activeView&&canonicalSymbol(activeView.symbol)===symbol&&activeView.period==='4H'&&activeView.hasData
+  ?active:views.findIndex(view=>canonicalSymbol(view.symbol)===symbol&&view.period==='4H'&&view.hasData);
  if(index<0)return;
  const view=views[index];
  if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring'||(window.VegasRuntimeMode?.standalone&&index!==active)){
