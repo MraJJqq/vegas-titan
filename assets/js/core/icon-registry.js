@@ -80,9 +80,5 @@ function show(element,symbol,decodedUrl){
   return true;
  }).catch(()=>false);
 }
-window.VegasIconRegistry=Object.freeze({
- get,load,show,
- has(symbol){return Object.prototype.hasOwnProperty.call(files,keyOf(symbol));},
- symbols(){return Object.keys(files);}
-});
+window.VegasIconRegistry=Object.freeze({get,load,show});
 })();
