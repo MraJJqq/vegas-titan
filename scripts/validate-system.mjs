@@ -22,6 +22,7 @@ if(!scrollEngine.includes("state.timer=setTimeout(schedule,33)")||!scrollEngine.
 if(!view.includes('const chartOwners=new WeakMap()'))fail('Card canvas resize lookup optimization missing');
 if(!view.includes('if(candlesChanged&&item.candles.length&&isVisible(item))draw(item)')||!view.includes("root.removeEventListener('mc-slot-visibility',onSlotVisibility)"))fail('Offscreen mini-chart rendering optimization or shared visibility lifecycle missing');
 if(!kline.includes('while(cache.size>90)'))fail('K-line cache bound missing');
+if(!kline.includes('function commonPrefixLength(')||!kline.includes('updateIndicators(symbol,oldRows,rows,common)')||!kline.includes('merged.common<oldRows.length'))fail('K-line refresh must reuse one candle-prefix scan for EMA and change detection');
 if(!kline.includes('/api/v2/mix/market/candles')||!kline.includes('/api/v2/mix/market/history-candles'))fail('K-line Bitget USDT-Futures endpoints missing');
 
 if(!card.includes('VegasLayer5ShowSymbol')||!card.includes('VegasLayer5SetAutoQueue'))fail('Card/K-line bridge missing');
