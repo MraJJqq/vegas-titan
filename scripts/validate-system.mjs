@@ -43,6 +43,9 @@ if(!view.includes('item.lastPriceValue!==item.price')||!view.includes('item.form
 if(!scrollEngine.includes('boxTop=i*stride,boxHeight=slotHeight'))fail('Scroll focus must use cached uniform slot geometry');
 if(!kline.includes('const count=store.count()')||!kline.includes('records.slice(MAX_RECORDS).forEach(item=>store.delete(item.key))'))fail('IndexedDB pruning must run only after exceeding the cache bound');
 if(!kline.includes('prior=old[common-length]')||!kline.includes('out=old.slice(0,common-length+1)'))fail('EMA continuation must use the aligned cached index');
+if(!kline.includes('WARMUP_BARS=6760')||!kline.includes('historyChecked:result.length>=WARMUP_BARS||reachedHistoryStart'))fail('EMA warmup must verify 6760 bars or confirmed Bitget history exhaustion');
+if(kline.includes('record.emas')||kline.includes('emas[length]'))fail('Persisted EMA values must not bypass candle-history recalculation');
+if(!kline.includes('row.time%14400===0'))fail('4H candle timestamps must align to UTC four-hour boundaries');
 const appCss=read('assets/css/app.css');
 if(!appCss.includes('--z-layer-kline:10;--z-layer-scroll:30;--z-layer-ticker:50'))fail('Explicit K-line < reserved middle layer < scroll/cards < ticker stacking order missing');
 if(appCss.includes('--z-layer-between-min')||appCss.includes('--z-layer-between-max')||appCss.includes('--z-layer-cards'))fail('Obsolete layer z-index tokens remain');
@@ -60,7 +63,7 @@ if(!kline.includes("productType:'USDT-FUTURES'")||kline.includes("category:'SPOT
 if(!controller.includes("manualPausedRemaining")||!controller.includes("manualDeadline=Date.now()+remaining"))fail('Manual K-line timer background pause/resume missing');
 if(controller.includes("loadLayer(1-active,queue[index],{completeHistory:false})"))fail('Next-symbol prewarm must complete 4H history for red-peak EMA warmup');
 if(!controller.includes('function preloadNext()')||!controller.includes('loadLayer(1-active,queue[index]);'))fail('Full-history next-symbol prewarm missing');
-if(!html.includes('market-data.js?v=visible-ticker-index-2')||!html.includes('card-view.js?v=card-render-guard-2')||!html.includes('kline-data.js?v=futures-prewarm-4')||!html.includes('kline-chart.js?v=chart-options-cache-2')||!html.includes('kline-controller.js?v=redpeak-prewarm-2'))fail('Optimized runtime module cache versions missing');
+if(!html.includes('market-data.js?v=visible-ticker-index-2')||!html.includes('card-view.js?v=card-render-guard-2')||!html.includes('kline-data.js?v=ema-history-integrity-1')||!html.includes('kline-chart.js?v=chart-options-cache-2')||!html.includes('kline-controller.js?v=redpeak-prewarm-2'))fail('Optimized runtime module cache versions missing');
 for(const p of ['assets/js/signals/v9-events.js','assets/js/core/market-universe.js','assets/js/core/market-data.js','assets/js/cards/card-view.js','assets/js/scroll/scroll-engine.js','assets/js/cards/card-system.js','assets/js/kline/kline-data.js'])if(!html.includes(p))fail('Entry point missing '+p);
 if(!html.includes("chart.src='./assets/js/kline/kline-chart.js")||!html.includes("app.src='./assets/js/kline/kline-controller.js"))fail('Dynamic K-line loader missing');
 const signalReader=read('assets/js/signals/v9-events.js');
