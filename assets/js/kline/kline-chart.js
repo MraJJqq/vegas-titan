@@ -67,6 +67,13 @@ function create(root,layers,LWC,getActive){
   const view=views[index];if(!view||!Array.isArray(rows)||!rows.length)return;
   const sameSymbol=view.symbol===symbol&&view.period==='4H'&&view.rows.length>0;
   const old=view.rows,emaRows=EMA.map(length=>window.VegasKlineData.ema(rows,length,symbol));
+  // Follow new candles only while the active viewport is still at the live edge.
+  const FOLLOW_LATEST_GAP=5;
+  let pinnedRange=null;
+  if(sameSymbol&&view===activeView()){
+   const visible=currentRange(view);
+   if(visible&&old.length-1-visible.to>FOLLOW_LATEST_GAP)pinnedRange={from:visible.from,to:visible.to};
+  }
   let historyOffset=0,historyRange=null;
   if(sameSymbol&&view===activeView()&&rows.length>old.length&&old.length){
    const firstIndex=rows.findIndex(row=>row.time===old[0].time);
@@ -99,6 +106,15 @@ function create(root,layers,LWC,getActive){
     save();
     applyPeers(view);
    }catch(error){console.warn('[Vegas Kline] preserve history viewport failed',error);apply(view);}
+  }else if(pinnedRange&&view===activeView()){
+   try{
+    view.chart.timeScale().setVisibleLogicalRange(pinnedRange);
+    appliedRanges.set(view,pinnedRange);
+    viewport.visibleBars=clamp(pinnedRange.to-pinnedRange.from,2,5000);
+    viewport.rightGap=clamp(rows.length-1-pinnedRange.to,-5000,50000);
+    save();
+    applyPeers(view);
+   }catch(error){console.warn('[Vegas Kline] preserve historical browsing range failed',error);apply(view);}
   }else{
    apply(view);
   }
