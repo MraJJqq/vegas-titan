@@ -118,7 +118,7 @@ function syncHeader(){
   else{logo.removeAttribute('src');logo.hidden=true;}
  }
  if(logoFallback&&!src){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}
- if(view.rows&&view.rows.length){const target=data.warmupBars||4000;error.hidden=view.rows.length>=target;if(view.rows.length<target)error.textContent=view.historyComplete?'Bitget可获取历史仅'+view.rows.length+'根，未达到红峰预热目标'+target+'根':'红峰历史预热中：'+view.rows.length+'/'+target+'根';}
+ if(view.rows&&view.rows.length){error.hidden=true;}
 }
 function loadLayer(index,symbol,options={}){
  const timeframe='4H';
@@ -136,7 +136,7 @@ function loadLayer(index,symbol,options={}){
   view.hasData=true;
   view.dataAt=Date.now();
   if(index===active)syncHeader();
-  if(options.completeHistory!==false&&first.length<(data.warmupBars||4000)){
+  if(options.completeHistory!==false&&!view.historyComplete){
    data.complete(symbol,timeframe,first).then(rows=>{
     if(view.requestId!==requestId)return;
     if(view.symbol!==symbol||view.period!==timeframe)return;
@@ -181,7 +181,7 @@ function onKlineDataUpdated(event){
   view.pendingRows=detail.rows;view.pendingSymbol=symbol;view.pendingPeriod='4H';return;
  }
  chart.setData(index,detail.rows,symbol,'4H');
- view.rows=detail.rows;view.dataAt=Date.now();view.historyComplete=view.historyComplete||detail.rows.length>=(data.warmupBars||4000);
+ view.rows=detail.rows;view.dataAt=Date.now();view.historyComplete=view.historyComplete||false;
  if(index===active)syncHeader();
 }
 window.addEventListener('vegas-kline-data-updated',onKlineDataUpdated);
@@ -226,7 +226,7 @@ function beginTransition(symbol,duration,kind,id,onComplete){
  const to=1-from;
  mode=kind;
  const view=views[to];
- const fresh=view.symbol===symbol&&view.period==='4H'&&view.hasData&&view.historyComplete&&Date.now()-view.dataAt<15000;
+ const fresh=view.symbol===symbol&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000;
  const ready=fresh?Promise.resolve(true):loadLayer(to,symbol);
  ready.then(loaded=>{
   if(id!==generation||document.hidden)return;
@@ -300,7 +300,7 @@ function preloadNext(){
  if(manualSymbol||queue.length<2||document.hidden)return;
  const index=(currentIndex+1)%queue.length;
  const view=views[1-active];
- if(view.symbol===queue[index]&&view.period==='4H'&&view.hasData&&view.historyComplete&&Date.now()-view.dataAt<15000)return;
+ if(view.symbol===queue[index]&&view.period==='4H'&&view.hasData&&Date.now()-view.dataAt<15000)return;
  loadLayer(1-active,queue[index]);
 }
 function captureAutoProgress(){
