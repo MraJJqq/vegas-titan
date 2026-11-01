@@ -55,3 +55,5 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;bac
  #market-cards-layer .mc-card{transition-duration:.01ms}
  #market-cards-layer .mc-float,#market-cards-layer .mc-gshadow,#market-cards-layer .mc-card::before{animation:none}
 }
+/* Standalone-only: isolate each card slot's layout/style work without changing its visual effects. */
+html.vegas-standalone #market-cards-layer .mc-slot{contain:layout style}
