@@ -59,7 +59,7 @@ const klinePos=html.indexOf('id="vegas-right-scroll"');
 const scrollPos=html.indexOf('id="market-cards-layer"');
 const tickerPos=html.indexOf('id="vegas-signal-ticker"');
 if(!(klinePos>=0&&scrollPos>klinePos&&tickerPos>scrollPos))fail('DOM layer order must be K-line, scroll container/cards, then ticker');
-if(!html.includes('app.css?v=card-glass-backdrop-fix-1')||!html.includes('right-signal-scroll.css?v=floating-logo-upper-1'))fail('Card glass backdrop or layer hit-test cache version missing');
+if(!html.includes('app.css?v=scroll-focus-no-lag-1')||!html.includes('right-signal-scroll.css?v=floating-logo-upper-1'))fail('Card glass backdrop or layer hit-test cache version missing');
 if(!kline.includes("productType:'USDT-FUTURES'")||kline.includes("category:'SPOT'")||kline.includes("stock-info"))fail('K-line data source must use Bitget USDT Futures only');
 if(!controller.includes("manualPausedRemaining")||!controller.includes("manualDeadline=Date.now()+remaining"))fail('Manual K-line timer background pause/resume missing');
 if(controller.includes('warmupBars')||controller.includes('红峰历史预热')||controller.includes('预热目标'))fail('K-line controller must not enforce red-peak warmup');
