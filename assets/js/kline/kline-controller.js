@@ -35,6 +35,7 @@ let mode='hidden';
 let autoTimer=0;
 let autoTimerCallback=null;
 let autoTimerDueAt=0;
+let autoTimerToken=0;
 let gesturePaused=false;
 let pausedAutoTimer=null;
 let manualTimer=0;
@@ -58,6 +59,7 @@ function ensureChart(){
  return chart;
 }
 function clearAutoTimer(){
+ ++autoTimerToken;
  if(autoTimer){clearTimeout(autoTimer);autoTimer=0;}
  autoTimerCallback=null;
  autoTimerDueAt=0;
@@ -66,9 +68,11 @@ function clearAutoTimer(){
 function armAutoTimer(callback,delay){
  clearAutoTimer();
  const wait=Math.max(0,delay);
+ const token=++autoTimerToken;
  autoTimerCallback=callback;
  autoTimerDueAt=Date.now()+wait;
  autoTimer=setTimeout(()=>{
+  if(token!==autoTimerToken||document.hidden)return;
   autoTimer=0;
   autoTimerCallback=null;
   autoTimerDueAt=0;
@@ -242,6 +246,7 @@ function beginTransition(symbol,duration,kind,id,onComplete){
    if(typeof onComplete==='function')onComplete(true);
    return;
   }
+  if(kind==='transitioning')autoDueAt=Date.now()+transitionDuration;
   chart.sync(from,to);
   layers.forEach(layer=>{layer.style.willChange='opacity';});
   setLayerStyles(from,false,0);
@@ -553,6 +558,8 @@ function onVisibility(){
   }
   ++generation;
   gesturePaused=false;
+  pausedTransitionStyles=null;
+  pausedAutoTimer=null;
   clearAutoTimer();
   clearManualTimer();
   clearRefreshTimer();
@@ -561,11 +568,11 @@ function onVisibility(){
   return;
  }
  const symbol=currentSymbol();
- if(!symbol)return;
+ if(!symbol||mode!=='hidden')return;
  showRoot();
  const id=++generation;
  loadLayer(active,symbol).then(ok=>{
-  if(!ok||id!==generation)return;
+  if(!ok||id!==generation||document.hidden)return;
   setLayerStyles(active,false,0);
   if(manualSymbol){
    const remaining=manualPausedRemaining!==null?manualPausedRemaining:Math.max(0,manualDeadline-Date.now());
