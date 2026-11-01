@@ -11,7 +11,7 @@ const read=p=>fs.readFileSync(p,'utf8');
 const symbols=[...read('assets/js/core/market-universe.js').matchAll(/\['([A-Z]+)','([A-Z0-9]+)'\]/g)];
 if(symbols.length!==27)fail('Expected 27 instruments; found '+symbols.length);
 const iconRegistry=read('assets/js/core/icon-registry.js');
-const iconMap=[...iconRegistry.matchAll(/^\\s*([A-Z0-9]+):'([^']+\\.svg)'/gm)];
+const iconMap=[...iconRegistry.matchAll(/^\s*([A-Z0-9]+):'([^']+\.svg)'/gm)];
 if(iconMap.length!==27)fail('Expected 27 Logo mappings; found '+iconMap.length);
 const iconSymbols=new Set(iconMap.map(match=>match[1]));
 for(const match of symbols){if(!iconSymbols.has(match[1]))fail('Logo mapping missing for '+match[1]);}
