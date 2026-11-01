@@ -181,7 +181,7 @@ function onKlineDataUpdated(event){
 }
 window.addEventListener('vegas-kline-data-updated',onKlineDataUpdated);
 function applyDeferredRefresh(){
- if(mode==='transitioning'||mode==='manual-transition'||mode==='restoring')return;
+ if(gesturePaused||mode==='transitioning'||mode==='manual-transition'||mode==='restoring')return;
  views.forEach((view,index)=>{
   if(!view.pendingRows)return;
   const rows=view.pendingRows;
