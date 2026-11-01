@@ -7,15 +7,17 @@ const root=document.getElementById('mc-left'),universe=window.VegasMarketUnivers
 if(!root||!universe||!window.VegasMarketCardView||!window.VegasMarketData||!window.VegasMarketCardScroll){
  console.error('[Vegas Layer 3] required foundation module missing');return;
 }
+let scroll=null;
 function selectSymbol(symbol){
  const value=String(symbol||'').trim().toUpperCase();
  if(!/^[A-Z0-9.]+$/.test(value))return false;
  if(typeof window.VegasLayer5ShowSymbol==='function')window.VegasLayer5ShowSymbol(value);
  else window.__VEGAS_PENDING_LAYER5_SYMBOL=value;
+ scroll?.resumeAfterSelection();
  return true;
 }
 const view=window.VegasMarketCardView.mount(root,universe,selectSymbol);
-const scroll=window.VegasMarketCardScroll.mount(root,view.slots());
+scroll=window.VegasMarketCardScroll.mount(root,view.slots());
 window.VegasGetRealityStockMap=window.VegasMarketData.getStockMap;
 let formalSymbols=[];
 window.VegasApplyFormalSignals=function(){
