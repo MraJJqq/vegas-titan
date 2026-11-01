@@ -18,6 +18,12 @@ for(const match of symbols){if(!iconSymbols.has(match[1]))fail('Logo mapping mis
 for(const match of iconMap){if(!fs.existsSync('assets/logos/'+match[2]))fail('Logo asset missing: '+match[2]);}
 const cardViewSource=read('assets/js/cards/card-view.js');
 if(!cardViewSource.includes('registry.load(item.symbol)'))fail('Card view must load Logo through the shared registry');
+const gestureView=cardViewSource;
+if(gestureView.includes('onClick')||gestureView.includes("addEventListener('click'"))fail('Legacy card click activation path remains');
+if((gestureView.match(/addEventListener\\('pointerdown'/g)||[]).length!==1||(gestureView.match(/addEventListener\\('pointerup'/g)||[]).length!==1)fail('Card activation must have one pointer down/up owner');
+if(!gestureView.includes('touch:7')||!gestureView.includes('Math.abs(touch.clientY-state.touchY)<8'))fail('Touch tap threshold must stay below the scroll engine drag threshold');
+if(!gestureView.includes('document.elementFromPoint(event.clientX,event.clientY)')||!gestureView.includes('if(releaseCard!==state.card)return;'))fail('Card activation must confirm release over the originally pressed card');
+if(!gestureView.includes('root.releasePointerCapture(activePointer.id)'))fail('Active pointer capture must be released during teardown');
 const controllerSource=read('assets/js/kline/kline-controller.js');
 if(!controllerSource.includes('registry.load(symbol)'))fail('K-line header must load Logo through the shared registry');
 if(iconRegistry.includes('function warm(')||iconRegistry.includes('requestIdleCallback'))fail('Redundant Logo idle-prewarming code remains');
