@@ -22,12 +22,15 @@ function draw(item){
 function mount(root,instruments,onSelect){
  if(!root)throw Error('Layer 3 root missing');
  const items=instruments.map(item=>({...item,nodes:null,price:0,open:0,candles:[]}));
- const markup=item=>'<div class="mc-slot"><div class="mc-float" style="--d:'+(-item.index*.9)+'s"><div class="mc-card" id="mc-c'+item.index+'" data-symbol="'+item.symbol+'"><div class="mc-glow"></div><div class="mc-row"><div class="mc-sym"><span class="mc-ico"><img src="'+item.iconUrl+'" alt="" aria-hidden="true" loading="lazy" decoding="async"></span><span class="mc-name">'+item.symbol+'<small>'+item.subtitle+'</small></span></div><span class="mc-chg">--</span></div><div class="mc-price">加载中</div><canvas class="mc-chart" aria-hidden="true"></canvas><div class="mc-tag">LIVE MARKET</div></div></div><div class="mc-gshadow" style="--d:'+(-item.index*.9)+'s"></div></div>';
+ const markup=item=>'<div class="mc-slot"><div class="mc-float" style="--d:'+(-item.index*.9)+'s"><div class="mc-card" id="mc-c'+item.index+'" data-symbol="'+item.symbol+'"><div class="mc-glow"></div><div class="mc-row"><div class="mc-sym"><span class="mc-ico"><img alt="" aria-hidden="true" decoding="async" data-icon-symbol="'+item.symbol+'"></span><span class="mc-name">'+item.symbol+'<small>'+item.subtitle+'</small></span></div><span class="mc-chg">--</span></div><div class="mc-price">加载中</div><canvas class="mc-chart" aria-hidden="true"></canvas><div class="mc-tag">LIVE MARKET</div></div></div><div class="mc-gshadow" style="--d:'+(-item.index*.9)+'s"></div></div>';
  root.replaceChildren();
  root.insertAdjacentHTML('beforeend',items.map(markup).join(''));
  items.forEach(item=>{
   const card=root.querySelector('#mc-c'+item.index);
   item.nodes={card,price:card.querySelector('.mc-price'),change:card.querySelector('.mc-chg'),chart:card.querySelector('.mc-chart')};
+  const icon=card.querySelector('.mc-ico img');
+  const registry=window.VegasIconRegistry;
+  if(icon&&registry?.load){registry.load(item.symbol).then(url=>{if(!url||!icon.isConnected)return;icon.src=url;icon.dataset.ready='true';}).catch(()=>{});}
  });
  const chartOwners=new WeakMap();
  items.forEach(item=>chartOwners.set(item.nodes.chart,item));
