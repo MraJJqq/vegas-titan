@@ -11,7 +11,6 @@ window.__VEGAS_LAYER5_MOUNTED__=true;
 const single=root.querySelector('.vr-single');
 const title=root.querySelector('.vr-symbol');
 const logo=root.querySelector('.vr-logo');
-const logoFallback=root.querySelector('.vr-logo-fallback');
 const error=root.querySelector('.vr-error');
 const layers=[0,1].map(index=>{
  const layer=document.createElement('div');
@@ -126,11 +125,9 @@ function syncHeader(){
     if(!ready){logo.hidden=true;return;}
     if(logo.getAttribute('src')!==ready)logo.src=ready;
     logo.hidden=false;
-    if(logoFallback)logoFallback.hidden=true;
    }).catch(()=>{if(request===headerRequest)logo.hidden=true;});
   }else{logo.removeAttribute('src');}
  }
- if(logoFallback)logoFallback.hidden=true;
  if(view.rows&&view.rows.length){error.hidden=true;}
 }
 function completeHistory(index,symbol,first,requestId){
