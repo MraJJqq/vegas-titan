@@ -52,7 +52,14 @@ function mount(root,instruments,onSelect){
  }
  // One activation path only. Native click is generated for a completed tap on iPad Safari;
  // relying on pointerup plus click caused the first tap to be consumed by duplicate handling.
+ // A moving card may no longer sit under the pointer on release. Keep the
+ // press-origin card as the activation target, and suppress the follow-up
+ // synthesized mouse click so it cannot activate a different card.
+ let mousePress=null,mouseClickSuppressionUntil=0;
  function onClick(event){
+  if(event.detail>0&&Date.now()<mouseClickSuppressionUntil){
+   event.preventDefault();event.stopImmediatePropagation();return;
+  }
   const path=typeof event.composedPath==='function'?event.composedPath():[];
   const target=path.find(node=>node instanceof Element&&node.matches('.mc-card[data-symbol]'))||event.target;
   const card=cardFrom(target);if(!card)return;
@@ -60,9 +67,8 @@ function mount(root,instruments,onSelect){
   card.dataset.lastActivation=String(Date.now());
   select(card.dataset.symbol);
  }
- // Desktop mouse activation uses pointerup so the first physical click is not lost
- // to browser click synthesis or transformed-card hit testing. Touch keeps native click.
- let mousePress=null;
+ // Mouse activation follows the card grabbed on pointerdown. Touch and pen
+ // continue through the native click path.
  function onMouseDown(event){
   if(event.pointerType!=='mouse'||event.button!==0)return;
   const card=cardFrom(event.target);
@@ -72,12 +78,12 @@ function mount(root,instruments,onSelect){
  function onMouseUp(event){
   if(event.pointerType!=='mouse'||!mousePress||event.pointerId!==mousePress.id)return;
   const press=mousePress;mousePress=null;
-  const card=cardFrom(event.target);
-  if(!card||card!==press.card||Math.hypot(event.clientX-press.x,event.clientY-press.y)>8)return;
-  const now=Date.now(),last=Number(card.dataset.lastActivation||0);
+  if(!press.card.isConnected||Math.hypot(event.clientX-press.x,event.clientY-press.y)>8)return;
+  const now=Date.now(),last=Number(press.card.dataset.lastActivation||0);
+  mouseClickSuppressionUntil=now+500;
   if(now-last<350)return;
-  card.dataset.lastActivation=String(now);
-  select(card.dataset.symbol);
+  press.card.dataset.lastActivation=String(now);
+  select(press.card.dataset.symbol);
  }
  root.addEventListener('pointerdown',onMouseDown,true);
  root.addEventListener('pointerup',onMouseUp,true);
