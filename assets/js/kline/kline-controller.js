@@ -101,7 +101,7 @@ function showRoot(){
  root.hidden=false;
  requestAnimationFrame(()=>chart&&chart.resize());
 }
-const LOGO_BY_SYMBOL=Object.freeze({AAPL:'apple',NVDA:'nvidia',TSLA:'tesla',META:'meta',INTC:'intel',AMD:'amd',AVGO:'broadcom',ARM:'arm',QCOM:'qualcomm',HOOD:'robinhood',SPCX:'spacex',BTC:'bitcoin'});
+function logoUrlFor(symbol){return window.VegasIconRegistry?.get(symbol)||'';}
 let headerRequest=0;
 function canonicalSymbol(value){
  const raw=String(value||'').trim().toUpperCase();if(!raw)return '';
@@ -111,13 +111,13 @@ function canonicalSymbol(value){
 function syncHeader(){
  const view=views[active],symbol=canonicalSymbol(view?.symbol);if(!view?.hasData||!symbol)return;
  const request=++headerRequest;title.textContent=symbol;
- const slug=LOGO_BY_SYMBOL[symbol];
+ const src=logoUrlFor(symbol);
  if(logo){
   logo.onerror=()=>{if(request!==headerRequest)return;logo.hidden=true;if(logoFallback){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}};
-  if(slug){const src='./assets/logos/'+slug+'.svg';logo.hidden=false;if(logo.getAttribute('src')!==src)logo.src=src;if(logoFallback)logoFallback.hidden=true;}
+  if(src){logo.hidden=false;if(logo.getAttribute('src')!==src)logo.src=src;if(logoFallback)logoFallback.hidden=true;}
   else{logo.removeAttribute('src');logo.hidden=true;}
  }
- if(logoFallback&&!slug){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}
+ if(logoFallback&&!src){logoFallback.hidden=false;logoFallback.textContent=symbol.slice(0,1);}
  if(view.rows&&view.rows.length){const target=data.warmupBars||4000;error.hidden=view.rows.length>=target;if(view.rows.length<target)error.textContent=view.historyComplete?'Bitget可获取历史仅'+view.rows.length+'根，未达到红峰预热目标'+target+'根':'红峰历史预热中：'+view.rows.length+'/'+target+'根';}
 }
 function loadLayer(index,symbol,options={}){
