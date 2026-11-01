@@ -50,8 +50,9 @@ function hydrate(key,record){
  const rows=record.rows.filter(row=>row&&Number.isFinite(row.time)&&Number.isFinite(row.close));
  if(!rows.length)return;
  cache.set(key,{rows,at:0,historyChecked:!!record.historyChecked});
- const symbol=key.split('|')[0],saved=record.emas||{};
- Object.keys(saved).forEach(length=>{if(Array.isArray(saved[length]))emaCache.set(symbol+'|'+PERIOD+'|'+length,saved[length]);});
+ // EMA arrays are deliberately rebuilt from the candle series.
+ // Persisted indicator values may belong to a different/revised candle history.
+
 }
 async function ensureCached(symbol,period){
  const key=keyFor(symbol,period);
@@ -60,9 +61,7 @@ async function ensureCached(symbol,period){
  return cache.get(key)?.rows||[];
 }
 function snapshot(symbol,rows){
- const emas={};
- [12,36,43,144,169,576,676].forEach(length=>{const values=emaCache.get(symbol+'|'+PERIOD+'|'+length);if(values)emas[length]=values;});
- return{key:keyFor(symbol,PERIOD),symbol,period:PERIOD,rows,emas,historyChecked:!!cache.get(keyFor(symbol,PERIOD))?.historyChecked,savedAt:Date.now()};
+ return{key:keyFor(symbol,PERIOD),symbol,period:PERIOD,rows,historyChecked:!!cache.get(keyFor(symbol,PERIOD))?.historyChecked,savedAt:Date.now()};
 }
 function persist(symbol,rows){writeRecord(snapshot(symbol,rows)).catch(()=>{});}
 async function request(path){
@@ -153,18 +152,24 @@ async function history(symbol,period,firstRows){
   if(cache.get(key)?.historyChecked&&cachedRows.length)return cachedRows;
   const seed=cachedRows.length>firstRows.length?cachedRows:firstRows;
   const ctx=await context(symbol,period),all=new Map(seed.map(row=>[row.time,row]));
-  let oldest=Math.min(...all.keys()),endTime=oldest*1000-1;
+  let oldest=Math.min(...all.keys()),endTime=oldest*1000-1,reachedHistoryStart=false;
   const maxPages=Math.ceil(WARMUP_BARS/ctx.pageLimit)+2;
   for(let page=0;page<maxPages&&all.size<WARMUP_BARS;page++){
    const params={...ctx.historyParams,endTime:String(endTime)},rows=normalize(await request(ctx.history+'?'+new URLSearchParams(params)));
-   if(!rows.length)break;
+   if(!rows.length){reachedHistoryStart=true;break;}
    let added=0;rows.forEach(row=>{if(!all.has(row.time)){all.set(row.time,row);added++;}});
-   const nextOldest=Math.min(...rows.map(row=>row.time));if(!added||!Number.isFinite(nextOldest)||nextOldest>=oldest)break;
+   const nextOldest=Math.min(...rows.map(row=>row.time));
+   if(!Number.isFinite(nextOldest)||nextOldest>=oldest)break;
    oldest=nextOldest;endTime=oldest*1000-1;
+   if(!added)break;
   }
   const latestRows=cache.get(key)?.rows||[];latestRows.forEach(row=>all.set(row.time,row));
   const result=[...all.values()].sort((a,b)=>a.time-b.time),oldRows=cache.get(key)?.rows||[];
-  updateIndicators(symbol,oldRows,result);cache.set(key,{rows:result,at:Date.now(),historyChecked:true});persist(symbol,result);
+  updateIndicators(symbol,oldRows,result);
+  // Mark complete only when the warmup target is reached or Bitget confirms
+  // there is no older history. A short/overlapping page is not proof of completion.
+  cache.set(key,{rows:result,at:Date.now(),historyChecked:result.length>=WARMUP_BARS||reachedHistoryStart});
+  persist(symbol,result);
   while(cache.size>90)cache.delete(cache.keys().next().value);return result;
  })();
  backfills.set(key,promise);try{return await promise;}finally{if(backfills.get(key)===promise)backfills.delete(key);}
