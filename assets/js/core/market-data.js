@@ -20,7 +20,7 @@ function getStockMap(){
  if(stockMapPromise)return stockMapPromise;
  stockMapPromise=request('/api/v3/reality/market/stock-info').then(rows=>{
   const map=new Map(rows.filter(x=>x?.code&&x?.symbol).map(x=>[String(x.code).toUpperCase(),String(x.symbol)]));
-  const special=rows.find(x=>x?.symbol&&(/SKHYNIX/i.test(String(x.code||''))||/SK\s*HYNIX/i.test(String(x.name||''))||/RSKHYUSDT/i.test(String(x.symbol||''))));
+  const special=rows.find(x=>x?.symbol&&(/SKHYNIX/i.test(String(x.code||''))||/SK\\s*HYNIX/i.test(String(x.name||''))||/RSKHYUSDT/i.test(String(x.symbol||''))));
   if(special)map.set('SKHYNIX',String(special.symbol));
   stockMap=map;stockMapAt=Date.now();return map;
  }).finally(()=>{stockMapPromise=null;});
@@ -37,18 +37,20 @@ async function refreshMini(instruments,visibleSymbols){
  const now=Date.now();
  const queue=instruments.filter(item=>visible.has(item.symbol)&&now-(miniLastAt.get(item.symbol)||0)>=MINI_REFRESH_MS&&!miniInFlight.has(item.symbol));
  if(!queue.length)return;
+ // Reserve every symbol before awaiting the stock map, so overlapping refreshes cannot enqueue it again.
+ queue.forEach(item=>miniInFlight.add(item.symbol));
  const map=await getStockMap().catch(()=>stockMap);
  let cursor=0;
  async function worker(){
   while(cursor<queue.length&&!stopped&&!document.hidden){
-   const item=queue[cursor++],previous=snapshots.get(item.symbol),symbol=item.isSpotStock?map?.get(item.symbol):item.contract;
-   if(!symbol)continue;
-   miniInFlight.add(item.symbol);
-   const limit=previous?.candles?.length?'3':'60';
-   const path=item.isSpotStock
-    ?'/api/v3/market/candles?'+new URLSearchParams({category:'SPOT',symbol,interval:'1H',limit})
-    :'/api/v2/mix/market/candles?'+new URLSearchParams({symbol,productType:'USDT-FUTURES',granularity:'1H',limit});
+   const item=queue[cursor++],previous=snapshots.get(item.symbol);
    try{
+    const symbol=item.isSpotStock?map?.get(item.symbol):item.contract;
+    if(!symbol)continue;
+    const limit=previous?.candles?.length?'3':'60';
+    const path=item.isSpotStock
+     ?'/api/v3/market/candles?'+new URLSearchParams({category:'SPOT',symbol,interval:'1H',limit})
+     :'/api/v2/mix/market/candles?'+new URLSearchParams({symbol,productType:'USDT-FUTURES',granularity:'1H',limit});
     const incoming=normalizeMini(await request(path)),merged=new Map((previous?.candles||[]).map(c=>[c.time,c]));
     incoming.forEach(c=>merged.set(c.time,c));
     const candles=[...merged.values()].sort((a,b)=>a.time-b.time).slice(-60);
@@ -61,7 +63,9 @@ async function refreshMini(instruments,visibleSymbols){
    }
   }
  }
- await Promise.all(Array.from({length:2},worker));
+ // Release reservations for queued items not picked up if the page is hidden or the engine stops.
+ try{await Promise.all(Array.from({length:2},worker));}
+ finally{queue.slice(cursor).forEach(item=>miniInFlight.delete(item.symbol));}
 }
 async function refresh(instruments,onUpdate,getVisibleSymbols){
  if(stopped||document.hidden||refreshing)return;
