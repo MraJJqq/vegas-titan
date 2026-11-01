@@ -104,7 +104,6 @@ function showRoot(){
  root.hidden=false;
  requestAnimationFrame(()=>chart&&chart.resize());
 }
-function logoUrlFor(symbol){return window.VegasIconRegistry?.get(symbol)||'';}
 let headerRequest=0;
 function canonicalSymbol(value){
  const raw=String(value||'').trim().toUpperCase();if(!raw)return '';
@@ -115,18 +114,14 @@ function syncHeader(){
  const view=views[active],symbol=canonicalSymbol(view?.symbol);if(!view?.hasData||!symbol)return;
  const request=++headerRequest;title.textContent=symbol;
  const registry=window.VegasIconRegistry;
- const src=logoUrlFor(symbol);
  if(logo){
   logo.hidden=true;
-  logo.onerror=()=>{if(request!==headerRequest)return;logo.hidden=true;};
-  if(src&&registry?.load){
-   registry.load(symbol).then(ready=>{
+  if(registry?.show){
+   registry.show(logo,symbol).then(ready=>{
     if(request!==headerRequest||!logo.isConnected)return;
-    if(!ready){logo.hidden=true;return;}
-    if(logo.getAttribute('src')!==ready)logo.src=ready;
-    logo.hidden=false;
-   }).catch(()=>{if(request===headerRequest)logo.hidden=true;});
-  }else{logo.removeAttribute('src');}
+    if(!ready)logo.hidden=true;
+   });
+  }else{logo.removeAttribute('src');logo.hidden=true;}
  }
  if(view.rows&&view.rows.length){error.hidden=true;}
 }
