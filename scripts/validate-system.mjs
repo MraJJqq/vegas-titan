@@ -20,7 +20,7 @@ const cardViewSource=read('assets/js/cards/card-view.js');
 if(!cardViewSource.includes('registry.load(item.symbol)'))fail('Card view must load Logo through the shared registry');
 const gestureView=cardViewSource;
 if(gestureView.includes('onClick')||gestureView.includes("addEventListener('click'"))fail('Legacy card click activation path remains');
-if((gestureView.match(/addEventListener\\('pointerdown'/g)||[]).length!==1||(gestureView.match(/addEventListener\\('pointerup'/g)||[]).length!==1)fail('Card activation must have one pointer down/up owner');
+if((gestureView.split("addEventListener('pointerdown'").length-1)!==1||(gestureView.split("addEventListener('pointerup'").length-1)!==1)fail('Card activation must have one pointer down/up owner');
 if(!gestureView.includes('touch:7')||!gestureView.includes('Math.abs(touch.clientY-state.touchY)<8'))fail('Touch tap threshold must stay below the scroll engine drag threshold');
 if(!gestureView.includes('document.elementFromPoint(event.clientX,event.clientY)')||!gestureView.includes('if(releaseCard!==state.card)return;'))fail('Card activation must confirm release over the originally pressed card');
 if(!gestureView.includes('root.releasePointerCapture(activePointer.id)'))fail('Active pointer capture must be released during teardown');
