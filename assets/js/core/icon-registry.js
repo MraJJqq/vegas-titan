@@ -45,13 +45,6 @@ function load(symbol){
  loaded.set(key,promise);
  return promise;
 }
-function clear(element){
- if(!element)return;
- requests.set(element,(requests.get(element)||0)+1);
- element.classList.remove('is-logo-ready');
- element.style.backgroundImage='none';
- element.removeAttribute('data-logo-symbol');
-}
 function show(element,symbol){
  if(!element)return Promise.resolve(false);
  const key=keyOf(symbol);
@@ -68,7 +61,7 @@ function show(element,symbol){
  }).catch(()=>false);
 }
 window.VegasIconRegistry=Object.freeze({
- get,load,show,clear,
+ get,load,show,
  has(symbol){return Object.prototype.hasOwnProperty.call(files,keyOf(symbol));},
  symbols(){return Object.keys(files);}
 });
