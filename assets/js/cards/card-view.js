@@ -48,24 +48,44 @@ function mount(root,instruments,onSelect){
  root.addEventListener('mc-slot-visibility',onSlotVisibility);
  items.forEach(item=>resizeObserver?.observe(item.nodes.chart));
  function select(symbol){if(typeof onSelect==='function')onSelect(symbol);}
- function cardFrom(target){
-  const card=target instanceof Element?target.closest('.mc-card[data-symbol]'):null;
-  return card&&root.contains(card)?card:null;
- }
- // One activation path for mouse, pen and touch: native click only.
- // Pointer down/up must never select a card; mixing both paths makes the
- // first click vulnerable to duplicate suppression and lost pointer-up events.
- function onClick(event){
+ function cardFromEvent(event){
   const path=typeof event.composedPath==='function'?event.composedPath():[];
-  const target=path.find(node=>node instanceof Element&&node.matches('.mc-card[data-symbol]'))||event.target;
-  const card=cardFrom(target);if(!card)return;
-  select(card.dataset.symbol);
- }
- function cardFrom(target){
-  const card=target instanceof Element?target.closest('.mc-card[data-symbol]'):null;
+  const node=path.find(value=>value instanceof Element&&value.matches('.mc-card[data-symbol]'));
+  const card=node||(event.target instanceof Element?event.target.closest('.mc-card[data-symbol]'):null);
   return card&&root.contains(card)?card:null;
  }
- root.addEventListener('click',onClick,true);
+ // Unified pointer gesture: one pointer sequence, one activation, no synthetic-click dependency.
+ let activePointer=null;
+ const thresholds={mouse:6,pen:9,touch:12};
+ function onPointerDown(event){
+  if(activePointer||!event.isPrimary||event.button!==0)return;
+  const card=cardFromEvent(event);if(!card)return;
+  activePointer={id:event.pointerId,card,symbol:card.dataset.symbol,
+   x:event.clientX,y:event.clientY,type:event.pointerType||'mouse',moved:false};
+  try{root.setPointerCapture(event.pointerId);}catch(_){}
+ }
+ function onGestureMove(event){
+  const state=activePointer;
+  if(!state||event.pointerId!==state.id)return;
+  const dx=event.clientX-state.x,dy=event.clientY-state.y;
+  if(dx*dx+dy*dy>Math.pow(thresholds[state.type]??8,2))state.moved=true;
+ }
+ function clearPointer(event){
+  if(!activePointer||event.pointerId!==activePointer.id)return null;
+  const state=activePointer;activePointer=null;return state;
+ }
+ function onPointerUp(event){
+  const state=clearPointer(event);if(!state||state.moved)return;
+  if(!state.card.isConnected||!root.contains(state.card))return;
+  if(state.card.dataset.symbol!==state.symbol)return;
+  select(state.symbol);
+ }
+ function onPointerCancel(event){clearPointer(event);}
+ root.addEventListener('pointerdown',onPointerDown,true);
+ root.addEventListener('pointermove',onGestureMove,true);
+ root.addEventListener('pointerup',onPointerUp,true);
+ root.addEventListener('pointercancel',onPointerCancel,true);
+ root.addEventListener('lostpointercapture',onPointerCancel,true);
  let pointerRaf=0,pointerEvent=null;
  function onPointerMove(event){
   if(event.pointerType==='touch')return;
@@ -124,7 +144,12 @@ function mount(root,instruments,onSelect){
  }
  function destroy(){
   resizeObserver?.disconnect();root.removeEventListener('mc-slot-visibility',onSlotVisibility);
-  root.removeEventListener('click',onClick,true);
+  root.removeEventListener('pointerdown',onPointerDown,true);
+  root.removeEventListener('pointermove',onGestureMove,true);
+  root.removeEventListener('pointerup',onPointerUp,true);
+  root.removeEventListener('pointercancel',onPointerCancel,true);
+  root.removeEventListener('lostpointercapture',onPointerCancel,true);
+  activePointer=null;
   root.removeEventListener('pointermove',onPointerMove);root.removeEventListener('pointerout',resetTilt);
   ['pointerleave','pointerup','pointercancel'].forEach(type=>root.removeEventListener(type,resetTilt));
   if(pointerRaf)cancelAnimationFrame(pointerRaf);
