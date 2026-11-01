@@ -127,11 +127,21 @@ function mount(root,slots){
   state.mode='wheel';state.autoDelayUntil=performance.now()+180;requestFrame();
  }
  function onTouchStart(event){
+  if(event.touches.length!==1){
+   if(state.touching)endTouch(true);
+   else state.touchPending=false;
+   return;
+  }
   const touch=event.touches[0];if(!touch)return;
   state.touchPending=true;state.touching=false;state.dragging=false;
   state.touchY=touch.clientY;state.touchTime=performance.now();state.touchSpeed=0;
  }
  function onTouchMove(event){
+  if(event.touches.length!==1){
+   if(state.touching)endTouch(true);
+   else state.touchPending=false;
+   return;
+  }
   const touch=event.touches[0];if(!touch||(!state.touchPending&&!state.touching))return;
   const now=performance.now(),delta=state.touchY-touch.clientY,elapsed=Math.max(1,now-state.touchTime);
   if(!state.dragging&&Math.abs(touch.clientY-state.touchY)<8)return;
@@ -154,8 +164,8 @@ function mount(root,slots){
    state.touchSpeed=clamp(state.touchSpeed*1.25,-3.6,3.6);state.mode='inertia';requestFrame();
   }else{state.touchSpeed=0;state.mode='auto';state.autoDelayUntil=performance.now()+1400;requestFrame();}
  }
- function onTouchEnd(){endTouch(false);}
- function onTouchCancel(){endTouch(true);}
+ function onTouchEnd(event){if(!event.touches||event.touches.length===0)endTouch(false);}
+ function onTouchCancel(event){if(!event.touches||event.touches.length===0)endTouch(true);}
  function resetTouch(){
   if(state.touchPending){state.touchPending=false;return;}
   if(state.touching)endTouch(true);
