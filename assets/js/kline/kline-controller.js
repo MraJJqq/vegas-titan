@@ -301,7 +301,7 @@ function preloadNext(){
  const index=(currentIndex+1)%queue.length;
  const view=views[1-active];
  if(view.symbol===queue[index]&&view.period==='4H'&&view.hasData&&view.historyComplete&&Date.now()-view.dataAt<15000)return;
- loadLayer(1-active,queue[index],{completeHistory:false});
+ loadLayer(1-active,queue[index]);
 }
 function captureAutoProgress(){
  if(manualSymbol)return autoSnapshot;
