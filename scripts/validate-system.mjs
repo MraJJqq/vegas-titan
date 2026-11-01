@@ -57,7 +57,7 @@ const slotRule=appCss.match(/#market-cards-layer \.mc-slot\{[^}]*\}/)?.[0]||'';
 if(!slotRule||slotRule.includes('filter:'))fail('Card slot must not create a filter backdrop root that blocks K-line glass blur');
 if(!appCss.includes('#market-cards-layer{--up:#2ee6a6;position:fixed;z-index:var(--z-layer-scroll);')||!appCss.includes('#market-cards-layer .mc-columns{position:absolute;inset:0 auto 0 0;width:min(100vw,380px);min-width:0;min-height:0;overflow:visible;pointer-events:none;')||!appCss.includes('#market-cards-layer .mc-side{position:relative;z-index:2;'))fail('Only the real card scroll viewport may receive pointer/touch input above K-line');
 const html=read('index.html');
-if(!html.includes('scroll-engine.js?v=velocity-handoff-1'))fail('Single-touch scroll guard cache version missing');
+if(!html.includes('scroll-engine.js?v=velocity-handoff-1'))fail('Velocity-handoff scroll engine cache version missing');
 const klinePos=html.indexOf('id="vegas-right-scroll"');
 const scrollPos=html.indexOf('id="market-cards-layer"');
 const tickerPos=html.indexOf('id="vegas-signal-ticker"');
