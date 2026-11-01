@@ -131,5 +131,5 @@ function destroy(){
  stopped=true;if(refreshTimer)clearTimeout(refreshTimer);refreshTimer=0;if(window.VegasRuntimeMode?.standalone)abortActiveRequests();
  document.removeEventListener('visibilitychange',onVisibility);
 }
-window.VegasMarketData={mount,destroy,getStockMap,request};
+window.VegasMarketData=Object.freeze({mount});
 })();
