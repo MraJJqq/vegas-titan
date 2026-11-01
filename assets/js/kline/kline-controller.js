@@ -104,7 +104,6 @@ function showRoot(){
  root.hidden=false;
  requestAnimationFrame(()=>chart&&chart.resize());
 }
-let headerRequest=0;
 function canonicalSymbol(value){
  const raw=String(value||'').trim().toUpperCase();if(!raw)return '';
  const item=(window.VegasMarketUniverse||[]).find(entry=>String(entry.symbol||'').trim().toUpperCase()===raw||String(entry.contract||'').trim().toUpperCase()===raw);
@@ -112,16 +111,14 @@ function canonicalSymbol(value){
 }
 function syncHeader(){
  const view=views[active],symbol=canonicalSymbol(view?.symbol);if(!view?.hasData||!symbol)return;
- const request=++headerRequest;title.textContent=symbol;
+ title.textContent=symbol;
  const registry=window.VegasIconRegistry;
  if(logo){
-  logo.hidden=true;
-  if(registry?.show){
-   registry.show(logo,symbol).then(ready=>{
-    if(request!==headerRequest||!logo.isConnected)return;
-    if(!ready)logo.hidden=true;
-   });
-  }else{logo.removeAttribute('src');logo.hidden=true;}
+  if(registry?.show)registry.show(logo,symbol);
+  else{
+   logo.classList.remove('is-logo-ready');
+   logo.style.backgroundImage='none';
+  }
  }
  if(view.rows&&view.rows.length){error.hidden=true;}
 }
